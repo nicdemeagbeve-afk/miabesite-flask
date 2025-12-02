@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Smartphone, Brain, MessageSquareText, CreditCard } from "lucide-react";
+import { LayoutDashboard, Smartphone, Brain, MessageSquareText, CreditCard, Shield } from "lucide-react"; // Added Shield icon
 import { cn } from "@/lib/utils";
 import { Sidebar } from "@/components/ui/sidebar";
 
@@ -18,6 +18,7 @@ const navItems: NavItem[] = [
   { href: "/prompt-ia", label: "Prompt & IA", icon: Brain },
   { href: "/chat-history", label: "Historique des Chats", icon: MessageSquareText },
   { href: "/billing", label: "Facturation", icon: CreditCard },
+  { href: "/admin", label: "Admin", icon: Shield }, // New Admin link
 ];
 
 export function MainSidebar() {
@@ -28,7 +29,7 @@ export function MainSidebar() {
       <div className="mb-8 text-2xl font-bold text-primary">Synapse AI</div>
       <nav className="flex flex-col space-y-2">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href)); // Adjusted for sub-routes
           const Icon = item.icon;
           return (
             <Link
