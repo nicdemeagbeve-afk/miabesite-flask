@@ -20,6 +20,9 @@ type ConnectionState = "connected" | "disconnected" | "pending";
 
 export default function HomePage() {
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
+  // NOTE: These statistics (quota, messages, response rate, avg response time) are currently simulated.
+  // To make them "real", you would need to implement a backend API that collects and aggregates this data
+  // from your Evolution API webhooks and/or your Supabase database.
   const [quotaUsed, setQuotaUsed] = useState(45);
   const totalQuota = 50000;
   const messagesProcessed = 15450;
@@ -63,7 +66,7 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchConnectionState();
-    // Simulate progress bar update
+    // Simulate progress bar update (for demo purposes, as real quota data is not available via API)
     const progressInterval = setInterval(() => {
       setQuotaUsed((prev) => (prev < 90 ? prev + 1 : 90)); // Max 90% for demo
     }, 1000);
@@ -192,6 +195,9 @@ export default function HomePage() {
           </CardHeader>
           <CardContent>
             <div className="h-[200px]">
+              {/* NOTE: Activity chart data is currently simulated.
+                  To make it "real", you would need a backend API endpoint
+                  that provides historical message data for the user's instance. */}
               <ActivityChart />
             </div>
           </CardContent>

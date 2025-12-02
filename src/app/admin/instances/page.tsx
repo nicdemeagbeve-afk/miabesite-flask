@@ -39,8 +39,8 @@ interface Instance {
 }
 
 // NOTE: In a real application, this data would be fetched from a backend API
-// that aggregates information about all instances. The provided Evolution API
-// does not have an endpoint to list all instances directly.
+// that aggregates information about all instances (e.g., from your Supabase `public.instances` table).
+// The provided Evolution API does not have an endpoint to list all instances directly.
 const mockInstances: Instance[] = Array.from({ length: 50 }, (_, i) => ({
   id: `user-${String(i + 1).padStart(3, "0")}`,
   userName: `Client ${i + 1}`,
@@ -60,9 +60,10 @@ export default function AdminInstancesPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate fetching instances from a hypothetical backend API
-    // In a real scenario, this would be an API call to your SaaS backend
-    // that provides a list of all instances and their aggregated status.
+    // NOTE: This function simulates fetching instances from a hypothetical backend API.
+    // To make this "real", you would need to implement a backend endpoint (e.g., /api/admin/instances)
+    // that queries your Supabase `public.instances` table and potentially other data sources
+    // to provide a comprehensive list of all instances and their statuses.
     const fetchInstances = async () => {
       setLoading(true);
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
@@ -77,6 +78,8 @@ export default function AdminInstancesPage() {
     setActionLoading(instanceId + "-logs");
     try {
       await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate API call
+      // NOTE: To make this "real", you would need a backend endpoint that provides
+      // logs for a specific instance. The Evolution API does not expose a logs endpoint.
       toast.info(`Affichage des logs pour l'instance ${instanceId}. (Fonctionnalité à implémenter, nécessite un endpoint de logs)`);
       // In a real app, this would open a modal or navigate to a log viewer
     } catch (error) {
@@ -106,9 +109,11 @@ export default function AdminInstancesPage() {
       }
       toast.info(`Instance ${instanceId} supprimée. Recréation en cours...`);
 
-      // Step 2: Simulate recreation and connection (as actual API calls would be complex here)
-      // In a real scenario, you would call POST /instance/create and GET /instance/connect
-      // with appropriate proxy and webhook settings.
+      // Step 2: Simulate recreation and connection.
+      // NOTE: A full "real" recreation would involve calling POST /instance/create
+      // with appropriate proxy and webhook settings, and then potentially GET /instance/connect
+      // to get a new QR code. This would require more complex state management here.
+      // For simplicity, we simulate the state change after deletion.
       await new Promise((resolve) => setTimeout(resolve, 3000)); 
       
       setInstances((prev) =>

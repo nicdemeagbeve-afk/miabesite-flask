@@ -37,6 +37,11 @@ interface Message {
   timestamp: string;
 }
 
+// NOTE: These mock conversations and messages are currently simulated.
+// To make them "real", you would need to implement a backend API endpoint
+// (e.g., /api/user/conversations and /api/user/conversations/{id}/messages)
+// that queries your Supabase `public.chat_messages` table and potentially
+// other tables (like `public.users` for contact names) to provide this data.
 const mockConversations: Conversation[] = [
   { id: "conv-001", contactName: "Alice Dupont", lastActivity: "Il y a 5 min", status: "En cours", unreadMessages: 2 },
   { id: "conv-002", contactName: "Bob Martin", lastActivity: "Il y a 1h", status: "Clôturé", unreadMessages: 0 },
