@@ -20,24 +20,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Eye, RefreshCcw, X, Loader2 } from "lucide-react";
+import { Eye, RefreshCcw, X, Loader2, FileText, RotateCcw, Network } from "lucide-react"; // Updated icons
 
 interface Instance {
   id: string;
   userName: string;
+  subscriptionPlan: string; // New field
   creationDate: string;
   apiStatus: "Open" | "Closed";
-  proxyStatus: "Healthy" | "Unhealthy";
+  lastWebhookPing: string; // New field
+  proxyAssociated: string; // New field
 }
 
 const mockInstances: Instance[] = Array.from({ length: 50 }, (_, i) => ({
-  id: `inst-${String(i + 1).padStart(3, "0")}`,
-  userName: `User ${i + 1}`,
+  id: `user-${String(i + 1).padStart(3, "0")}`,
+  userName: `Client ${i + 1}`,
+  subscriptionPlan: i % 3 === 0 ? "Premium" : i % 2 === 0 ? "Standard" : "Basic",
   creationDate: new Date(Date.now() - i * 86400000).toLocaleDateString("fr-FR"),
   apiStatus: Math.random() > 0.8 ? "Closed" : "Open",
-  proxyStatus: Math.random() > 0.9 ? "Unhealthy" : "Healthy",
+  lastWebhookPing: Math.random() > 0.1 ? "Il y a 5 min" : "Jamais",
+  proxyAssociated: `proxy-${String(Math.floor(Math.random() * 10) + 1).padStart(3, "0")}`,
 }));
 
 export default function AdminInstancesPage() {
@@ -45,8 +49,8 @@ export default function AdminInstancesPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterApiStatus, setFilterApiStatus] = useState<string>("all");
-  const [filterProxyStatus, setFilterProxyStatus] = useState<string>("all");
-  const [actionLoading, setActionLoading] = useState<string | null>(null); // To track loading state for specific actions
+  const [filterWebhookPing, setFilterWebhookPing] = useState<string>("all"); // New filter
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchInstances = async () => {
@@ -59,53 +63,49 @@ export default function AdminInstancesPage() {
     fetchInstances();
   }, []);
 
-  const handleCheckState = async (instanceId: string) => {
-    setActionLoading(instanceId + "-check");
+  const handleViewLogs = async (instanceId: string) => {
+    setActionLoading(instanceId + "-logs");
     try {
       await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate API call
-      const newStatus = Math.random() > 0.5 ? "Open" : "Closed";
-      setInstances((prev) =>
-        prev.map((inst) =>
-          inst.id === instanceId ? { ...inst, apiStatus: newStatus } : inst
-        )
-      );
-      toast.info(`État de l'instance ${instanceId} vérifié : ${newStatus}`);
+      toast.info(`Affichage des logs pour l'instance ${instanceId}. (Fonctionnalité à implémenter)`);
+      // In a real app, this would open a modal or navigate to a log viewer
     } catch (error) {
-      toast.error(`Erreur lors de la vérification de l'état de ${instanceId}.`);
+      toast.error(`Erreur lors de la récupération des logs de ${instanceId}.`);
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleRestartInstance = async (instanceId: string) => {
-    setActionLoading(instanceId + "-restart");
+  const handleForceReconnect = async (instanceId: string) => {
+    setActionLoading(instanceId + "-reconnect");
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 3000)); // Simulate DELETE then POST
+      setInstances((prev) =>
+        prev.map((inst) =>
+          inst.id === instanceId ? { ...inst, apiStatus: "Open", lastWebhookPing: "Il y a quelques secondes" } : inst
+        )
+      );
+      toast.success(`Instance ${instanceId} forcée à se reconnecter avec succès.`);
+    } catch (error) {
+      toast.error(`Erreur lors de la reconnexion forcée de l'instance ${instanceId}.`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleChangeProxy = async (instanceId: string) => {
+    setActionLoading(instanceId + "-proxy");
     try {
       await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate API call
+      const newProxy = `proxy-${String(Math.floor(Math.random() * 10) + 1).padStart(3, "0")}`;
       setInstances((prev) =>
         prev.map((inst) =>
-          inst.id === instanceId ? { ...inst, apiStatus: "Open" } : inst
+          inst.id === instanceId ? { ...inst, proxyAssociated: newProxy } : inst
         )
       );
-      toast.success(`Instance ${instanceId} relancée avec succès.`);
+      toast.success(`Proxy de l'instance ${instanceId} modifié en ${newProxy}.`);
     } catch (error) {
-      toast.error(`Erreur lors du redémarrage de l'instance ${instanceId}.`);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleForceDisconnect = async (instanceId: string) => {
-    setActionLoading(instanceId + "-disconnect");
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate API call
-      setInstances((prev) =>
-        prev.map((inst) =>
-          inst.id === instanceId ? { ...inst, apiStatus: "Closed" } : inst
-        )
-      );
-      toast.success(`Instance ${instanceId} déconnectée de force.`);
-    } catch (error) {
-      toast.error(`Erreur lors de la déconnexion forcée de l'instance ${instanceId}.`);
+      toast.error(`Erreur lors de la modification du proxy de l'instance ${instanceId}.`);
     } finally {
       setActionLoading(null);
     }
@@ -114,29 +114,31 @@ export default function AdminInstancesPage() {
   const filteredInstances = instances.filter((instance) => {
     const matchesSearch =
       instance.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      instance.userName.toLowerCase().includes(searchTerm.toLowerCase());
+      instance.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      instance.subscriptionPlan.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      instance.proxyAssociated.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesApiStatus =
       filterApiStatus === "all" || instance.apiStatus === filterApiStatus;
-    const matchesProxyStatus =
-      filterProxyStatus === "all" || instance.proxyStatus === filterProxyStatus;
-    return matchesSearch && matchesApiStatus && matchesProxyStatus;
+    const matchesWebhookPing =
+      filterWebhookPing === "all" || (filterWebhookPing === "ok" && instance.lastWebhookPing !== "Jamais") || (filterWebhookPing === "nok" && instance.lastWebhookPing === "Jamais");
+    return matchesSearch && matchesApiStatus && matchesWebhookPing;
   });
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold mb-6">Supervision des Instances 📊</h1>
+      <h1 className="text-3xl font-bold mb-6">Gestion des Instances 📱</h1>
       <p className="mb-6 text-muted-foreground">
-        Gérez et diagnostiquez les instances de chatbot WhatsApp.
+        Recherchez, diagnostiquez et corrigez les problèmes des instances de chatbot.
       </p>
 
       <Card>
         <CardHeader>
-          <CardTitle>Liste des Instances</CardTitle>
+          <CardTitle>Liste Détaillée des Instances</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <Input
-              placeholder="Rechercher par ID ou nom d'utilisateur..."
+              placeholder="Rechercher par ID, nom, plan ou proxy..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm"
@@ -151,14 +153,14 @@ export default function AdminInstancesPage() {
                 <SelectItem value="Closed">Closed</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={filterProxyStatus} onValueChange={setFilterProxyStatus}>
+            <Select value={filterWebhookPing} onValueChange={setFilterWebhookPing}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtrer par statut Proxy" />
+                <SelectValue placeholder="Filtrer par Ping Webhook" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les statuts Proxy</SelectItem>
-                <SelectItem value="Healthy">Healthy</SelectItem>
-                <SelectItem value="Unhealthy">Unhealthy</SelectItem>
+                <SelectItem value="all">Tous les pings</SelectItem>
+                <SelectItem value="ok">OK</SelectItem>
+                <SelectItem value="nok">Jamais</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -173,11 +175,12 @@ export default function AdminInstancesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Utilisateur</TableHead>
+                    <TableHead>ID Instance</TableHead>
+                    <TableHead>Client / Plan</TableHead>
                     <TableHead>Création</TableHead>
                     <TableHead>Statut API</TableHead>
-                    <TableHead>Statut Proxy</TableHead>
+                    <TableHead>Dernier Ping Webhook</TableHead>
+                    <TableHead>Proxy Associé</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -186,7 +189,7 @@ export default function AdminInstancesPage() {
                     filteredInstances.map((instance) => (
                       <TableRow key={instance.id}>
                         <TableCell className="font-medium">{instance.id}</TableCell>
-                        <TableCell>{instance.userName}</TableCell>
+                        <TableCell>{instance.userName} / <Badge variant="secondary">{instance.subscriptionPlan}</Badge></TableCell>
                         <TableCell>{instance.creationDate}</TableCell>
                         <TableCell>
                           <Badge
@@ -202,66 +205,66 @@ export default function AdminInstancesPage() {
                         <TableCell>
                           <Badge
                             className={
-                              instance.proxyStatus === "Healthy"
+                              instance.lastWebhookPing !== "Jamais"
                                 ? "bg-green-500 hover:bg-green-500/90"
                                 : "bg-orange-500 hover:bg-orange-500/90"
                             }
                           >
-                            {instance.proxyStatus}
+                            {instance.lastWebhookPing}
                           </Badge>
                         </TableCell>
+                        <TableCell>{instance.proxyAssociated}</TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleCheckState(instance.id)}
-                            disabled={actionLoading === instance.id + "-check"}
+                            onClick={() => handleViewLogs(instance.id)}
+                            disabled={actionLoading === instance.id + "-logs"}
                           >
-                            {actionLoading === instance.id + "-check" ? (
+                            {actionLoading === instance.id + "-logs" ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                              <Eye className="h-4 w-4" />
+                              <FileText className="h-4 w-4" />
                             )}
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleRestartInstance(instance.id)}
-                            disabled={actionLoading === instance.id + "-restart"}
+                            onClick={() => handleForceReconnect(instance.id)}
+                            disabled={actionLoading === instance.id + "-reconnect"}
                           >
-                            {actionLoading === instance.id + "-restart" ? (
+                            {actionLoading === instance.id + "-reconnect" ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                              <RefreshCcw className="h-4 w-4" />
+                              <RotateCcw className="h-4 w-4" />
                             )}
                           </Button>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button variant="destructive" size="sm">
-                                <X className="h-4 w-4" />
+                              <Button variant="outline" size="sm">
+                                <Network className="h-4 w-4" />
                               </Button>
                             </DialogTrigger>
                             <DialogContent>
                               <DialogHeader>
-                                <DialogTitle>Confirmer la Déconnexion Forcée</DialogTitle>
+                                <DialogTitle>Modifier le Proxy pour l'instance {instance.id}</DialogTitle>
                                 <DialogDescription>
-                                  Êtes-vous sûr de vouloir forcer la déconnexion de l'instance {instance.id} ?
-                                  Cela pourrait interrompre les services pour l'utilisateur.
+                                  Sélectionnez un nouveau proxy pour cette instance.
+                                  (Fonctionnalité de sélection de proxy à implémenter)
                                 </DialogDescription>
                               </DialogHeader>
                               <div className="flex justify-end gap-2">
                                 <Button variant="outline">Annuler</Button>
                                 <Button
-                                  variant="destructive"
-                                  onClick={() => handleForceDisconnect(instance.id)}
-                                  disabled={actionLoading === instance.id + "-disconnect"}
+                                  onClick={() => handleChangeProxy(instance.id)}
+                                  disabled={actionLoading === instance.id + "-proxy"}
                                 >
-                                  {actionLoading === instance.id + "-disconnect" ? (
+                                  {actionLoading === instance.id + "-proxy" ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                   ) : (
-                                    <X className="mr-2 h-4 w-4" />
+                                    <Network className="mr-2 h-4 w-4" />
                                   )}
-                                  Déconnecter
+                                  Changer Proxy
                                 </Button>
                               </div>
                             </DialogContent>
@@ -271,7 +274,7 @@ export default function AdminInstancesPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                         Aucune instance trouvée.
                       </TableCell>
                     </TableRow>

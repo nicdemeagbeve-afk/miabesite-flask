@@ -1,9 +1,18 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ListChecks, ServerCog } from "lucide-react";
+import { ListChecks, ServerCog, AlertTriangle, ShieldAlert } from "lucide-react"; // Added AlertTriangle and ShieldAlert icons
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert component
+import { Progress } from "@/components/ui/progress"; // Import Progress component
 
 export default function AdminDashboardPage() {
+  // Simulated KPI data
+  const activeInstances = 955;
+  const totalInstances = 1000;
+  const apiErrors = 12;
+  const cpuUsage = 75; // in percentage
+  const bannedIPs = 0;
+
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-6">Tableau de Bord Admin 🛡️</h1>
@@ -11,36 +20,69 @@ export default function AdminDashboardPage() {
         Vue d'ensemble et gestion des opérations de la plateforme Synapse AI.
       </p>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+      {/* KPI Critiques - Santé de la Flotte Synapse */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <Card>
           <CardHeader>
-            <CardTitle>Instances Actives</CardTitle>
+            <CardTitle className="text-sm font-medium">Instances Actives</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold">850</p>
-            <p className="text-muted-foreground">sur 1000</p>
+            <p className="text-4xl font-bold">{activeInstances}</p>
+            <p className="text-muted-foreground text-sm">sur {totalInstances}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Taux de Déconnexion</CardTitle>
+            <CardTitle className="text-sm font-medium">Erreurs API (24h)</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold">5%</p>
-            <p className="text-muted-foreground">par jour</p>
+            <p className="text-4xl font-bold">{apiErrors}</p>
+            <p className="text-muted-foreground text-sm">échecs sendText</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Consommation CPU</CardTitle>
+            <CardTitle className="text-sm font-medium">Utilisation RAM/CPU du Cluster</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold">65%</p>
-            <p className="text-muted-foreground">Moyenne du cluster</p>
+            <div className="text-2xl font-bold mb-2">{cpuUsage}%</div>
+            <Progress value={cpuUsage} className="w-full" />
+            <p className="text-muted-foreground text-xs mt-1">Moyenne du cluster</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Nombre d'IP Bannies</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold">{bannedIPs}</p>
+            <p className="text-muted-foreground text-sm">Le KPI le plus important</p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Cartes d'Alertes - Système d'Alerte */}
+      <div className="mb-8 space-y-4">
+        <h2 className="text-xl font-semibold">Système d'Alerte</h2>
+        {/* Example Alert 1: High severity */}
+        <Alert variant="destructive">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Alerte Critique : Déconnexions Massives</AlertTitle>
+          <AlertDescription>
+            50 instances ont été déconnectées simultanément. Un bannissement de masse est possible. Veuillez vérifier les logs et les proxies.
+          </AlertDescription>
+        </Alert>
+        {/* Example Alert 2: Medium severity */}
+        <Alert className="bg-orange-500 text-white">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Alerte : Surcharge du Webhook</AlertTitle>
+          <AlertDescription>
+            Le service de Webhook est surchargé, ce qui peut entraîner des retards dans le traitement des messages.
+          </AlertDescription>
+        </Alert>
+      </div>
+
+      {/* Gestion des Abonnements */}
       <Card className="mb-8">
         <CardHeader>
           <CardTitle>Gestion des Abonnements</CardTitle>
@@ -57,6 +99,7 @@ export default function AdminDashboardPage() {
         </CardContent>
       </Card>
 
+      {/* Supervision des Instances et Gestion des Proxies */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
