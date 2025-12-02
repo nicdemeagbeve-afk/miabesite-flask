@@ -28,60 +28,100 @@ import { Eye, RefreshCcw, X, Loader2, FileText, RotateCcw, Network } from "lucid
 const API_SERVER_URL = process.env.NEXT_PUBLIC_API_SERVER_URL;
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
 
-interface Instance {
-  id: string;
-  userName: string;
-  subscriptionPlan: string; // New field
-  creationDate: string;
-  apiStatus: "Open" | "Closed";
-  lastWebhookPing: string; // New field
-  proxyAssociated: string; // New field
+// Interface pour la réponse de l'API Evolution pour une instance
+interface EvolutionAPIInstanceResponse {
+  instance: {
+    instanceName: string;
+    instanceId: string;
+    owner: string;
+    profileName: string;
+    profilePictureUrl: string | null;
+    profileStatus: string;
+    status: "open" | "close" | "connecting" | "created"; // État de connexion de l'API Evolution
+    serverUrl: string;
+    apikey: string; // Clé API spécifique à l'instance (peut être différente de la clé globale)
+    integration: {
+      integration: string;
+      webhook_wa_business: string | null;
+    };
+  };
 }
 
-// NOTE: In a real application, this data would be fetched from a backend API
-// that aggregates information about all instances (e.g., from your Supabase `public.instances` table).
-// The provided Evolution API does not have an endpoint to list all instances directly.
-const mockInstances: Instance[] = Array.from({ length: 50 }, (_, i) => ({
-  id: `user-${String(i + 1).padStart(3, "0")}`,
-  userName: `Client ${i + 1}`,
-  subscriptionPlan: i % 3 === 0 ? "Premium" : i % 2 === 0 ? "Standard" : "Basic",
-  creationDate: new Date(Date.now() - i * 86400000).toLocaleDateString("fr-FR"),
-  apiStatus: Math.random() > 0.8 ? "Closed" : "Open",
-  lastWebhookPing: Math.random() > 0.1 ? "Il y a 5 min" : "Jamais",
-  proxyAssociated: `proxy-${String(Math.floor(Math.random() * 10) + 1).padStart(3, "0")}`,
-}));
+// Interface pour les données d'instance utilisées dans l'UI
+interface Instance {
+  id: string; // instanceId de l'API
+  userName: string; // profileName ou instanceName de l'API
+  subscriptionPlan: string; // Donnée simulée pour l'instant, nécessite un backend personnalisé
+  creationDate: string; // Donnée simulée pour l'instant, nécessite un backend personnalisé
+  apiStatus: "Open" | "Closed"; // Mappé depuis le 'status' de l'API
+  lastWebhookPing: string; // Donnée simulée pour l'instant, nécessite un backend personnalisé
+  proxyAssociated: string; // Donnée simulée pour l'instant, nécessite un backend personnalisé
+}
 
 export default function AdminInstancesPage() {
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterApiStatus, setFilterApiStatus] = useState<string>("all");
-  const [filterWebhookPing, setFilterWebhookPing] = useState<string>("all"); // New filter
+  const [filterWebhookPing, setFilterWebhookPing] = useState<string>("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => {
-    // NOTE: This function simulates fetching instances from a hypothetical backend API.
-    // To make this "real", you would need to implement a backend endpoint (e.g., /api/admin/instances)
-    // that queries your Supabase `public.instances` table and potentially other data sources
-    // to provide a comprehensive list of all instances and their statuses.
-    const fetchInstances = async () => {
-      setLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
-      setInstances(mockInstances);
+  const fetchInstances = async () => {
+    if (!API_SERVER_URL || !API_KEY) {
+      toast.error("API_SERVER_URL ou API_KEY non configuré dans .env.local");
       setLoading(false);
-      toast.success("Instances chargées avec succès (données simulées).");
-    };
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_SERVER_URL}/instance/fetchInstances`, {
+        method: 'GET',
+        headers: {
+          'apikey': API_KEY, // Utilise la clé API globale pour récupérer toutes les instances
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: EvolutionAPIInstanceResponse[] = await response.json();
+      const mappedInstances: Instance[] = data.map((apiInstance) => ({
+        id: apiInstance.instance.instanceId,
+        userName: apiInstance.instance.profileName || apiInstance.instance.instanceName,
+        // Ces champs ne sont pas directement disponibles via /instance/fetchInstances.
+        // Ils nécessiteraient un backend personnalisé qui agrège ces informations
+        // ou des appels API supplémentaires si l'API Evolution les expose ailleurs.
+        subscriptionPlan: "Basic", // Valeur par défaut/simulée
+        creationDate: new Date().toLocaleDateString("fr-FR"), // Valeur par défaut/simulée
+        lastWebhookPing: "Il y a 5 min", // Valeur par défaut/simulée
+        proxyAssociated: `proxy-${String(Math.floor(Math.random() * 10) + 1).padStart(3, "0")}`, // Valeur par défaut/simulée
+        apiStatus: apiInstance.instance.status === "open" ? "Open" : "Closed",
+      }));
+      setInstances(mappedInstances);
+      toast.success("Instances chargées avec succès.");
+    } catch (error) {
+      console.error("Error fetching instances:", error);
+      toast.error("Erreur lors du chargement des instances.");
+      setInstances([]); // Efface les instances en cas d'erreur
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchInstances();
-  }, []);
+  }, []); // Exécute une seule fois au montage du composant
 
   const handleViewLogs = async (instanceId: string) => {
     setActionLoading(instanceId + "-logs");
     try {
       await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate API call
-      // NOTE: To make this "real", you would need a backend endpoint that provides
-      // logs for a specific instance. The Evolution API does not expose a logs endpoint.
+      // NOTE: Pour rendre cela "réel", vous auriez besoin d'un endpoint backend qui fournit
+      // les logs pour une instance spécifique. L'API Evolution n'expose pas d'endpoint de logs.
       toast.info(`Affichage des logs pour l'instance ${instanceId}. (Fonctionnalité à implémenter, nécessite un endpoint de logs)`);
-      // In a real app, this would open a modal or navigate to a log viewer
+      // Dans une vraie application, cela ouvrirait une modale ou naviguerait vers un visualiseur de logs
     } catch (error) {
       toast.error(`Erreur lors de la récupération des logs de ${instanceId}.`);
     } finally {
@@ -96,7 +136,7 @@ export default function AdminInstancesPage() {
     }
     setActionLoading(instanceId + "-reconnect");
     try {
-      // Use the Evolution API's restart endpoint for a cleaner reconnect
+      // Utilise l'endpoint de redémarrage de l'API Evolution pour une reconnexion plus propre
       const response = await fetch(`${API_SERVER_URL}/instance/restart/${instanceId}`, {
         method: 'PUT',
         headers: {
@@ -108,7 +148,7 @@ export default function AdminInstancesPage() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      // Simulate a short delay for the instance to come back online
+      // Simule un court délai pour que l'instance revienne en ligne
       await new Promise((resolve) => setTimeout(resolve, 2000)); 
       
       setInstances((prev) =>
@@ -132,11 +172,11 @@ export default function AdminInstancesPage() {
     }
     setActionLoading(instanceId + "-proxy");
     try {
-      // NOTE: The provided API documentation does not have a direct endpoint
-      // to change the proxy of an *existing* instance.
-      // In a real scenario, changing a proxy might involve deleting the instance
-      // and recreating it with the new proxy, or updating it via a custom backend.
-      // For now, we will simulate the change in the UI.
+      // NOTE: La documentation API fournie n'a pas d'endpoint direct
+      // pour changer le proxy d'une instance *existante*.
+      // Dans un scénario réel, changer un proxy pourrait impliquer de supprimer l'instance
+      // et de la recréer avec le nouveau proxy, ou de la mettre à jour via un backend personnalisé.
+      // Pour l'instant, nous allons simuler le changement dans l'UI.
       await new Promise((resolve) => setTimeout(resolve, 2000)); 
       const newProxy = `proxy-${String(Math.floor(Math.random() * 10) + 1).padStart(3, "0")}`;
       setInstances((prev) =>
