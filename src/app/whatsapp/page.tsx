@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { Loader2, QrCode, Link as LinkIcon, WifiOff, Trash2, CheckCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/components/auth/AuthContext"; // Import useAuth
+import { useRouter } from "next/navigation";
 
 // Environment variables for API configuration
 const API_SERVER_URL = process.env.NEXT_PUBLIC_API_SERVER_URL;
@@ -20,27 +22,37 @@ const EVOLUTION_WEBHOOK_URL = process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_URL || `
 type ConnectionState = "connected" | "disconnected" | "pending";
 
 export default function WhatsappPage() {
+  const { userId, instanceId, loading: authLoading } = useAuth(); // Use AuthContext
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [linkingCode, setLinkingCode] = useState<string | null>(null);
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
   const [isFetchingQr, setIsFetchingQr] = useState(false);
   const [showLinkingCodeInput, setShowLinkingCodeInput] = useState(false);
-  const [instanceName, setInstanceName] = useState<string | null>(null);
+  const [currentInstanceName, setCurrentInstanceName] = useState<string | null>(null); // Renamed to avoid conflict
   const [lastConnectionTime, setLastConnectionTime] = useState<string | null>(null);
 
-  // Placeholder for a unique user ID. In a real app, this would come from user auth.
-  const currentInstanceId = "user_123"; 
+  const router = useRouter();
 
   const fetchConnectionState = useCallback(async () => {
-    if (!API_SERVER_URL || !API_KEY) {
-      toast.error("API_SERVER_URL ou API_KEY non configuré dans .env.local");
+    if (!API_SERVER_URL || API_SERVER_URL.trim() === "" || !API_KEY || API_KEY.trim() === "") {
+      if (connectionState !== "disconnected") {
+        toast.error("API_SERVER_URL ou API_KEY non configuré ou vide dans .env.local. Veuillez vérifier vos variables d'environnement.");
+      }
+      setConnectionState("disconnected");
+      setCurrentInstanceName(null);
+      setLastConnectionTime(null);
       return;
     }
-    if (!currentInstanceId) return;
+    if (!instanceId) {
+      setConnectionState("disconnected");
+      setCurrentInstanceName(null);
+      setLastConnectionTime(null);
+      return;
+    }
 
     try {
-      const response = await fetch(`${API_SERVER_URL}/instance/connectionState/${currentInstanceId}`, {
+      const response = await fetch(`${API_SERVER_URL}/instance/connectionState/${instanceId}`, {
         headers: {
           'apikey': API_KEY,
         },
@@ -52,30 +64,37 @@ export default function WhatsappPage() {
       const state = data.instance?.state;
       if (state === "open") {
         setConnectionState("connected");
-        setInstanceName(currentInstanceId);
+        setCurrentInstanceName(instanceId);
         setLastConnectionTime(new Date().toLocaleString("fr-FR"));
       } else if (state === "connecting") {
         setConnectionState("pending");
-        setInstanceName(currentInstanceId);
+        setCurrentInstanceName(instanceId);
       } else {
         setConnectionState("disconnected");
-        setInstanceName(null);
+        setCurrentInstanceName(null);
         setLastConnectionTime(null);
       }
     } catch (error) {
       console.error("Error fetching connection state:", error);
       setConnectionState("disconnected");
-      setInstanceName(null);
+      setCurrentInstanceName(null);
       setLastConnectionTime(null);
-      toast.error("Erreur lors de la récupération du statut de connexion.");
+      if (connectionState === "connected" || connectionState === "pending") {
+        toast.error("Erreur lors de la récupération du statut de connexion. Vérifiez la console pour plus de détails.");
+      }
     }
-  }, [currentInstanceId]);
+  }, [instanceId, connectionState]);
 
   const createInstance = async () => {
-    if (!API_SERVER_URL || !API_KEY) {
-      toast.error("API_SERVER_URL ou API_KEY non configuré dans .env.local");
+    if (!API_SERVER_URL || API_SERVER_URL.trim() === "" || !API_KEY || API_KEY.trim() === "") {
+      toast.error("API_SERVER_URL ou API_KEY non configuré ou vide dans .env.local. Impossible de créer l'instance.");
       return;
     }
+    if (!instanceId) {
+      toast.error("ID utilisateur non disponible. Veuillez vous connecter.");
+      return;
+    }
+
     setIsCreatingInstance(true);
     setQrCode(null); // Clear previous QR code
     setLinkingCode(null); // Clear previous linking code
@@ -88,7 +107,7 @@ export default function WhatsappPage() {
           'apikey': API_KEY,
         },
         body: JSON.stringify({
-          instanceName: currentInstanceId,
+          instanceName: instanceId, // Use dynamic instanceId
           token: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15), // Simple random token
           qrcode: true,
           integration: "WHATSAPP-BAILEYS",
@@ -111,7 +130,7 @@ export default function WhatsappPage() {
 
       toast.success("Instance créée avec succès !");
       setConnectionState("pending");
-      setInstanceName(currentInstanceId);
+      setCurrentInstanceName(instanceId);
       fetchQrCode(); // Immediately fetch QR code after creation
     } catch (error) {
       console.error("Error creating instance:", error);
@@ -122,15 +141,18 @@ export default function WhatsappPage() {
   };
 
   const fetchQrCode = useCallback(async () => {
-    if (!API_SERVER_URL || !API_KEY) {
-      toast.error("API_SERVER_URL ou API_KEY non configuré dans .env.local");
+    if (!API_SERVER_URL || API_SERVER_URL.trim() === "" || !API_KEY || API_KEY.trim() === "") {
+      toast.error("API_SERVER_URL ou API_KEY non configuré ou vide dans .env.local. Impossible de récupérer le QR Code.");
       return;
     }
-    if (!currentInstanceId) return;
+    if (!instanceId) {
+      toast.error("ID utilisateur non disponible. Veuillez vous connecter.");
+      return;
+    }
 
     setIsFetchingQr(true);
     try {
-      const response = await fetch(`${API_SERVER_URL}/instance/connect/${currentInstanceId}`, {
+      const response = await fetch(`${API_SERVER_URL}/instance/connect/${instanceId}`, {
         headers: {
           'apikey': API_KEY,
         },
@@ -148,7 +170,7 @@ export default function WhatsappPage() {
         setQrCode(null);
         toast.info("Code de liaison généré. Utilisez-le pour vous connecter.");
       } else {
-        toast.info("Aucun QR Code ou code de liaison reçu."); // Changed from toast.warn to toast.info
+        toast.info("Aucun QR Code ou code de liaison reçu.");
       }
     } catch (error) {
       console.error("Error fetching QR Code:", error);
@@ -156,17 +178,20 @@ export default function WhatsappPage() {
     } finally {
       setIsFetchingQr(false);
     }
-  }, [currentInstanceId]);
+  }, [instanceId]);
 
   const disconnectInstance = async () => {
-    if (!API_SERVER_URL || !API_KEY) {
-      toast.error("API_SERVER_URL ou API_KEY non configuré dans .env.local");
+    if (!API_SERVER_URL || API_SERVER_URL.trim() === "" || !API_KEY || API_KEY.trim() === "") {
+      toast.error("API_SERVER_URL ou API_KEY non configuré ou vide dans .env.local. Impossible de déconnecter l'instance.");
       return;
     }
-    if (!currentInstanceId) return;
+    if (!instanceId) {
+      toast.error("ID utilisateur non disponible. Veuillez vous connecter.");
+      return;
+    }
 
     try {
-      const response = await fetch(`${API_SERVER_URL}/instance/logout/${currentInstanceId}`, {
+      const response = await fetch(`${API_SERVER_URL}/instance/logout/${instanceId}`, {
         method: 'DELETE',
         headers: {
           'apikey': API_KEY,
@@ -180,7 +205,7 @@ export default function WhatsappPage() {
       setConnectionState("disconnected");
       setQrCode(null);
       setLinkingCode(null);
-      setInstanceName(null);
+      setCurrentInstanceName(null);
       setLastConnectionTime(null);
       toast.success("Instance déconnectée temporairement.");
     } catch (error) {
@@ -190,14 +215,17 @@ export default function WhatsappPage() {
   };
 
   const deleteInstance = async () => {
-    if (!API_SERVER_URL || !API_KEY) {
-      toast.error("API_SERVER_URL ou API_KEY non configuré dans .env.local");
+    if (!API_SERVER_URL || API_SERVER_URL.trim() === "" || !API_KEY || API_KEY.trim() === "") {
+      toast.error("API_SERVER_URL ou API_KEY non configuré ou vide dans .env.local. Impossible de supprimer l'instance.");
       return;
     }
-    if (!currentInstanceId) return;
+    if (!instanceId) {
+      toast.error("ID utilisateur non disponible. Veuillez vous connecter.");
+      return;
+    }
 
     try {
-      const response = await fetch(`${API_SERVER_URL}/instance/delete/${currentInstanceId}`, {
+      const response = await fetch(`${API_SERVER_URL}/instance/delete/${instanceId}`, {
         method: 'DELETE',
         headers: {
           'apikey': API_KEY,
@@ -211,7 +239,7 @@ export default function WhatsappPage() {
       setConnectionState("disconnected");
       setQrCode(null);
       setLinkingCode(null);
-      setInstanceName(null);
+      setCurrentInstanceName(null);
       setLastConnectionTime(null);
       toast.success("Instance supprimée définitivement.");
     } catch (error) {
@@ -221,17 +249,33 @@ export default function WhatsappPage() {
   };
 
   useEffect(() => {
-    fetchConnectionState();
-    const interval = setInterval(() => {
-      if (connectionState === "pending" || connectionState === "disconnected") {
-        fetchConnectionState();
-      }
-      if (connectionState === "pending" && !qrCode && !isFetchingQr) {
-        fetchQrCode();
-      }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [connectionState, qrCode, isFetchingQr, fetchConnectionState, fetchQrCode]);
+    if (!authLoading) { // Only fetch if auth state is known
+      fetchConnectionState();
+      const interval = setInterval(() => {
+        if (connectionState === "pending" || connectionState === "disconnected") {
+          fetchConnectionState();
+        }
+        if (connectionState === "pending" && !qrCode && !isFetchingQr) {
+          fetchQrCode();
+        }
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [authLoading, connectionState, qrCode, isFetchingQr, fetchConnectionState, fetchQrCode]);
+
+  if (authLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Chargement de l'utilisateur...</p>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    router.push('/login'); // Redirect to login if not authenticated
+    return null;
+  }
 
   const getConnectionBadge = () => {
     switch (connectionState) {
@@ -261,9 +305,9 @@ export default function WhatsappPage() {
               {getConnectionBadge()}
               {connectionState === "pending" && <Loader2 className="h-5 w-5 animate-spin text-orange-500" />}
             </div>
-            {instanceName && (
+            {currentInstanceName && (
               <p className="text-sm text-muted-foreground">
-                Instance: {instanceName} / État: {connectionState === "connected" ? "Ouvert" : "Fermé"}
+                Instance: {currentInstanceName} / État: {connectionState === "connected" ? "Ouvert" : "Fermé"}
               </p>
             )}
             {lastConnectionTime && (

@@ -11,7 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { supabaseClient } from '@/lib/supabase/client'; // Import client-side Supabase client
+import { supabaseClient } from '@/lib/supabase/client';
+import { useAuth } from "@/components/auth/AuthContext"; // Import useAuth
+import { useRouter } from "next/navigation";
 
 // Environment variables for API configuration
 const API_SERVER_URL = process.env.NEXT_PUBLIC_API_SERVER_URL;
@@ -23,18 +25,17 @@ const formSchema = z.object({
   ignoreGroupMessages: z.boolean().optional(),
   alwaysOnline: z.boolean().optional(),
   rejectCalls: z.boolean().optional(),
-  rejectCallMessage: z.string().max(200, { message: "Le message de rejet ne peut pas dépasser 200 caractères." }).optional(),
+  rejectCallMessage: z.string().max(200, { message: "Le message de rejet ne peut pas dépassar 200 caractères." }).optional(),
 });
 
 type SettingsFormValues = z.infer<typeof formSchema>;
 
 export default function PromptIaPage() {
+  const { userId, instanceId, loading: authLoading } = useAuth(); // Use AuthContext
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Placeholder for a unique user ID. In a real app, this would come from user auth.
-  const currentUserId = "user_123"; 
-  const currentInstanceId = "user_123"; // Assuming instanceId is same as userId for simplicity
+  const router = useRouter();
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(formSchema),
@@ -53,8 +54,13 @@ export default function PromptIaPage() {
   // Fetch initial settings from Evolution API and Supabase
   useEffect(() => {
     const fetchSettings = async () => {
-      if (!API_SERVER_URL || !API_KEY) {
-        toast.error("API_SERVER_URL ou API_KEY non configuré dans .env.local");
+      if (authLoading || !userId || !instanceId) {
+        setIsLoading(true);
+        return;
+      }
+
+      if (!API_SERVER_URL || API_SERVER_URL.trim() === "" || !API_KEY || API_KEY.trim() === "") {
+        toast.error("API_SERVER_URL ou API_KEY non configuré ou vide dans .env.local. Impossible de charger les paramètres.");
         setIsLoading(false);
         return;
       }
@@ -62,7 +68,7 @@ export default function PromptIaPage() {
       setIsLoading(true);
       try {
         // Fetch Evolution API settings
-        const evolutionResponse = await fetch(`${API_SERVER_URL}/settings/find/${currentInstanceId}`, {
+        const evolutionResponse = await fetch(`${API_SERVER_URL}/settings/find/${instanceId}`, {
           headers: {
             'apikey': API_KEY,
           },
@@ -77,7 +83,7 @@ export default function PromptIaPage() {
         const { data: aiPromptData, error: aiPromptError } = await supabaseClient
           .from('ai_prompts')
           .select('main_prompt')
-          .eq('instance_id', currentInstanceId)
+          .eq('instance_id', instanceId)
           .single();
 
         if (aiPromptError && aiPromptError.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine
@@ -103,19 +109,23 @@ export default function PromptIaPage() {
     };
 
     fetchSettings();
-  }, [form, currentInstanceId, currentUserId]); // Added currentUserId to dependencies
+  }, [form, userId, instanceId, authLoading]);
 
   // Save settings to Evolution API and Supabase
   const onSubmit = async (values: SettingsFormValues) => {
-    if (!API_SERVER_URL || !API_KEY) {
-      toast.error("API_SERVER_URL ou API_KEY non configuré dans .env.local");
+    if (!API_SERVER_URL || API_SERVER_URL.trim() === "" || !API_KEY || API_KEY.trim() === "") {
+      toast.error("API_SERVER_URL ou API_KEY non configuré ou vide dans .env.local. Impossible de sauvegarder les paramètres.");
+      return;
+    }
+    if (!userId || !instanceId) {
+      toast.error("ID utilisateur ou d'instance non disponible. Veuillez vous connecter.");
       return;
     }
 
     setIsSaving(true);
     try {
       // Save Evolution API settings
-      const evolutionResponse = await fetch(`${API_SERVER_URL}/settings/set/${currentInstanceId}`, {
+      const evolutionResponse = await fetch(`${API_SERVER_URL}/settings/set/${instanceId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -140,8 +150,8 @@ export default function PromptIaPage() {
       const { error: upsertPromptError } = await supabaseClient
         .from('ai_prompts')
         .upsert({
-          instance_id: currentInstanceId,
-          user_id: currentUserId,
+          instance_id: instanceId,
+          user_id: userId,
           main_prompt: values.mainPrompt,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'instance_id' });
@@ -162,6 +172,20 @@ export default function PromptIaPage() {
       setIsSaving(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Chargement de l'utilisateur...</p>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    router.push('/login'); // Redirect to login if not authenticated
+    return null;
+  }
 
   return (
     <div className="p-8">

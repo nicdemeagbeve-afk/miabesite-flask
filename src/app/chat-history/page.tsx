@@ -21,6 +21,8 @@ import {
 import { Search, MessageSquare, Send, User, Bot, MessageSquareText, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { useAuth } from "@/components/auth/AuthContext"; // Import useAuth
+import { useRouter } from "next/navigation";
 
 interface Conversation {
   id: string;
@@ -43,9 +45,10 @@ interface Message {
 }
 
 export default function ChatHistoryPage() {
+  const { userId, loading: authLoading } = useAuth(); // Use AuthContext
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("last_activity"); // Changed to match DB field
+  const [sortBy, setSortBy] = useState<string>("last_activity");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -54,13 +57,17 @@ export default function ChatHistoryPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sendingNote, setSendingNote] = useState(false);
 
-  // Placeholder for a unique user ID. In a real app, this would come from user auth.
-  const currentUserId = "user_123"; 
+  const router = useRouter();
 
   const fetchConversations = useCallback(async () => {
+    if (authLoading || !userId) {
+      setLoadingConversations(true);
+      return;
+    }
+
     setLoadingConversations(true);
     try {
-      const response = await fetch(`/api/chat-history/conversations?userId=${currentUserId}`); // Pass userId for filtering
+      const response = await fetch(`/api/chat-history/conversations`); // userId is now handled by API route
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -72,7 +79,7 @@ export default function ChatHistoryPage() {
     } finally {
       setLoadingConversations(false);
     }
-  }, [currentUserId]);
+  }, [userId, authLoading]);
 
   const fetchMessages = useCallback(async (conversationId: string) => {
     setLoadingMessages(true);
@@ -115,8 +122,10 @@ export default function ChatHistoryPage() {
   }, []);
 
   useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+    if (!authLoading && userId) {
+      fetchConversations();
+    }
+  }, [fetchConversations, authLoading, userId]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -171,6 +180,20 @@ export default function ChatHistoryPage() {
       }
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Chargement de l'utilisateur...</p>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    router.push('/login'); // Redirect to login if not authenticated
+    return null;
+  }
 
   return (
     <div className="p-8 h-full">

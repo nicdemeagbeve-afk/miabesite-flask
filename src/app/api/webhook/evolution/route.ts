@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
-import OpenAI from 'openai'; // Import OpenAI SDK
+import { GoogleGenerativeAI } from '@google/generative-ai'; // Import GoogleGenerativeAI SDK
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize Google Generative AI client
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 // Define the expected structure of the Evolution API webhook payload
 interface MessageUpsertData {
@@ -53,26 +51,24 @@ type EvolutionWebhookPayload =
   | { event: 'qr.code'; instance: string; id: string; data: QrCodeUpdateData }
   | { event: 'instance.status'; instance: string; id: string; data: InstanceStatusUpdateData };
 
-// Real AI API call using OpenAI
+// Real AI API call using Google Gemini
 async function callAIApi(prompt: string, messageText: string): Promise<string> {
-  if (!process.env.OPENAI_API_KEY) {
-    console.error("OPENAI_API_KEY is not configured.");
+  if (!process.env.GEMINI_API_KEY) {
+    console.error("GEMINI_API_KEY is not configured.");
     return "Désolé, l'intégration de l'IA n'est pas configurée correctement.";
   }
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo", // You can choose other models like "gpt-4"
-      messages: [
-        { role: "system", content: prompt },
-        { role: "user", content: messageText },
-      ],
-      max_tokens: 150, // Limit the response length
-    });
-
-    return completion.choices[0].message.content || "Je n'ai pas pu générer de réponse.";
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" }); // You can choose other Gemini models
+    const result = await model.generateContent([
+      { text: prompt },
+      { text: messageText }
+    ]);
+    const response = await result.response;
+    const text = response.text();
+    return text || "Je n'ai pas pu générer de réponse.";
   } catch (error) {
-    console.error("Error calling OpenAI API:", error);
+    console.error("Error calling Google Gemini API:", error);
     return "Désolé, une erreur est survenue lors de la communication avec l'IA.";
   }
 }
@@ -193,7 +189,7 @@ export async function POST(request: Request) {
             // Continue with default prompt if there's an error
           }
 
-          // 2. Call AI API (now using OpenAI)
+          // 2. Call AI API (now using Google Gemini)
           const aiResponseText = await callAIApi(mainPrompt, text);
 
           // 3. Send AI response back via Evolution API
@@ -201,8 +197,8 @@ export async function POST(request: Request) {
           const API_KEY = process.env.NEXT_PUBLIC_API_KEY; // Global API key for Evolution API
 
           if (!API_SERVER_URL || !API_KEY) {
-            console.error("Evolution API_SERVER_URL or API_KEY not configured for sending messages.");
-            return NextResponse.json({ error: 'Evolution API not configured' }, { status: 500 });
+            console.error("Evolution API_SERVER_URL ou API_KEY non configuré pour l'envoi de messages.");
+            return NextResponse.json({ error: 'Evolution API non configurée' }, { status: 500 });
           }
 
           const sendResponse = await fetch(`${API_SERVER_URL}/message/sendText/${instanceId}`, {
@@ -221,10 +217,10 @@ export async function POST(request: Request) {
 
           if (!sendResponse.ok) {
             const errorData = await sendResponse.json();
-            console.error('Error sending AI message via Evolution API:', sendResponse.status, errorData);
+            console.error('Erreur lors de l\'envoi du message IA via Evolution API:', sendResponse.status, errorData);
             // Log this error but don't necessarily fail the webhook, as the incoming message was processed.
           } else {
-            console.log(`AI response sent to ${contactNumber} via instance ${instanceId}`);
+            console.log(`Réponse IA envoyée à ${contactNumber} via l'instance ${instanceId}`);
             // 4. Store AI response in Supabase
             const { error: aiMsgError } = await supabaseServer
               .from('messages')
@@ -237,35 +233,35 @@ export async function POST(request: Request) {
               });
 
             if (aiMsgError) {
-              console.error('Error inserting AI response message:', aiMsgError);
+              console.error('Erreur lors de l\'insertion du message de réponse IA:', aiMsgError);
             }
           }
         }
 
-        return NextResponse.json({ message: 'Message processed successfully' }, { status: 200 });
+        return NextResponse.json({ message: 'Message traité avec succès' }, { status: 200 });
       }
 
       case 'connection.update': {
-        console.log(`Instance ${instanceId} connection status updated: ${data.instance.state}`);
-        return NextResponse.json({ message: 'Connection update processed' }, { status: 200 });
+        console.log(`Statut de connexion de l'instance ${instanceId} mis à jour: ${data.instance.state}`);
+        return NextResponse.json({ message: 'Mise à jour de connexion traitée' }, { status: 200 });
       }
 
       case 'qr.code': {
-        console.log(`Instance ${instanceId} QR code updated.`);
-        return NextResponse.json({ message: 'QR code update processed' }, { status: 200 });
+        console.log(`QR code de l'instance ${instanceId} mis à jour.`);
+        return NextResponse.json({ message: 'Mise à jour du QR code traitée' }, { status: 200 });
       }
 
       case 'instance.status': {
-        console.log(`Instance ${instanceId} status updated.`);
-        return NextResponse.json({ message: 'Instance status update processed' }, { status: 200 });
+        console.log(`Statut de l'instance ${instanceId} mis à jour.`);
+        return NextResponse.json({ message: 'Mise à jour du statut de l\'instance traitée' }, { status: 200 });
       }
 
       default:
-        console.log(`Unhandled event type: ${event}`);
-        return NextResponse.json({ message: 'Unhandled event type' }, { status: 200 });
+        console.log(`Type d'événement non géré: ${event}`);
+        return NextResponse.json({ message: 'Type d\'événement non géré' }, { status: 200 });
     }
   } catch (error) {
-    console.error('Webhook processing error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error('Erreur de traitement du webhook:', error);
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }

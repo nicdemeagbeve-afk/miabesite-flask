@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export async function PUT(request: Request, { params }: { params: { conversationId: string } }) {
   try {
@@ -9,7 +11,27 @@ export async function PUT(request: Request, { params }: { params: { conversation
       return NextResponse.json({ error: 'Conversation ID is required' }, { status: 400 });
     }
 
-    // In a real application, you would also verify that the conversationId belongs to the authenticated user.
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userId = user.id;
+
+    // Verify that the conversation belongs to the authenticated user
+    const { data: conversation, error: convError } = await supabaseServer
+      .from('conversations')
+      .select('id')
+      .eq('id', conversationId)
+      .eq('user_id', userId)
+      .single();
+
+    if (convError || !conversation) {
+      console.error('Conversation not found or does not belong to user:', convError);
+      return NextResponse.json({ error: 'Conversation not found or unauthorized' }, { status: 403 });
+    }
 
     const { error } = await supabaseServer
       .from('conversations')

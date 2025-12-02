@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { ActivityChart } from "@/components/charts/activity-chart";
 import { CheckCircle, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner"; // Import toast
+import { toast } from "sonner";
+import { useAuth } from "@/components/auth/AuthContext"; // Import useAuth
 
 // Environment variables for API configuration
 const API_SERVER_URL = process.env.NEXT_PUBLIC_API_SERVER_URL;
@@ -19,28 +20,34 @@ const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
 type ConnectionState = "connected" | "disconnected" | "pending";
 
 export default function HomePage() {
+  const { userId, instanceId, loading: authLoading } = useAuth(); // Use AuthContext
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
-  // NOTE: These statistics (quota, messages, response rate, avg response time) are currently simulated.
-  // To make them "real", you would need to implement a backend API that collects and aggregates this data
-  // from your Evolution API webhooks and/or your Supabase database.
-  const [quotaUsed, setQuotaUsed] = useState(45);
-  const totalQuota = 50000;
-  const messagesProcessed = 15450;
-  const responseRate = 98.5;
-  const avgResponseTime = 1.2;
-  const instanceName = "user_123"; // Assuming a fixed instance for the home page
+  // NOTE: Ces statistiques sont maintenant des placeholders.
+  // Pour les rendre "réelles", vous devrez implémenter un backend
+  // qui collecte et agrège ces données (ex: via les webhooks Evolution API vers Supabase).
+  const [quotaUsed, setQuotaUsed] = useState(0); // Placeholder
+  const totalQuota = 50000; // Placeholder
+  const messagesProcessed = 0; // Placeholder
+  const responseRate = 0; // Placeholder
+  const avgResponseTime = 0; // Placeholder
 
   const router = useRouter();
 
   const fetchConnectionState = useCallback(async () => {
-    if (!API_SERVER_URL || !API_KEY) {
-      toast.error("API_SERVER_URL ou API_KEY non configuré dans .env.local");
+    if (!API_SERVER_URL || API_SERVER_URL.trim() === "" || !API_KEY || API_KEY.trim() === "") {
+      if (connectionState !== "disconnected") {
+        toast.error("API_SERVER_URL ou API_KEY non configuré ou vide dans .env.local. Veuillez vérifier vos variables d'environnement.");
+      }
+      setConnectionState("disconnected");
       return;
     }
-    if (!instanceName) return;
+    if (!instanceId) {
+      setConnectionState("disconnected");
+      return;
+    }
 
     try {
-      const response = await fetch(`${API_SERVER_URL}/instance/connectionState/${instanceName}`, {
+      const response = await fetch(`${API_SERVER_URL}/instance/connectionState/${instanceId}`, {
         headers: {
           'apikey': API_KEY,
         },
@@ -60,26 +67,40 @@ export default function HomePage() {
     } catch (error) {
       console.error("Error fetching connection state:", error);
       setConnectionState("disconnected");
-      toast.error("Erreur lors de la récupération du statut de connexion de l'instance.");
+      if (connectionState === "connected" || connectionState === "pending") {
+        toast.error("Erreur lors de la récupération du statut de connexion de l'instance. Vérifiez la console pour plus de détails.");
+      }
     }
-  }, [instanceName]);
+  }, [instanceId, connectionState]);
 
   useEffect(() => {
-    fetchConnectionState();
-    // Simulate progress bar update (for demo purposes, as real quota data is not available via API)
-    const progressInterval = setInterval(() => {
-      setQuotaUsed((prev) => (prev < 90 ? prev + 1 : 90)); // Max 90% for demo
-    }, 1000);
-
-    const connectionInterval = setInterval(() => {
+    if (!authLoading) { // Only fetch if auth state is known
       fetchConnectionState();
-    }, 10000); // Refresh connection state every 10 seconds
+      const connectionInterval = setInterval(() => {
+        if (connectionState === "pending" || connectionState === "disconnected") {
+          fetchConnectionState();
+        }
+      }, 10000); // Refresh connection state every 10 seconds
 
-    return () => {
-      clearInterval(progressInterval);
-      clearInterval(connectionInterval);
-    };
-  }, [fetchConnectionState]);
+      return () => {
+        clearInterval(connectionInterval);
+      };
+    }
+  }, [authLoading, fetchConnectionState, connectionState]);
+
+  if (authLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Chargement de l'utilisateur...</p>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    router.push('/login'); // Redirect to login if not authenticated
+    return null;
+  }
 
   return (
     <div className="p-8">
@@ -176,7 +197,7 @@ export default function HomePage() {
               >
                 {connectionState === "connected" ? "Actif" : connectionState === "pending" ? "En attente" : "Déconnecté"}
               </Badge>
-              <span className="text-sm text-muted-foreground">Instance: {instanceName}</span>
+              <span className="text-sm text-muted-foreground">Instance: {instanceId || "Non disponible"}</span>
             </div>
             <p className="text-sm text-muted-foreground mb-2">
               Quota de messages mensuels ({quotaUsed}% utilisé)

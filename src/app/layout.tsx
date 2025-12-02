@@ -4,6 +4,7 @@ import { Inter, Poppins } from "next/font/google"; // Import new fonts
 import "./globals.css";
 import { MainSidebar } from "@/components/layout/main-sidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from "@/components/auth/AuthContext"; // Import AuthProvider
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,13 +46,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${poppins.variable} antialiased`}
       >
-        <div className="flex min-h-screen">
-          <MainSidebar />
-          <div className="flex-1 ml-64">
-            {children}
+        <AuthProvider> {/* Wrap the entire app with AuthProvider */}
+          <div className="flex min-h-screen">
+            <MainSidebar />
+            <div className="flex-1 ml-64">
+              {children}
+            </div>
           </div>
-        </div>
-        <Toaster />
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );

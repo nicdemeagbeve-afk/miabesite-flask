@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export async function GET(request: Request) {
   try {
-    // In a real application, the userId would come from an authenticated session.
-    // For now, we'll use a hardcoded instanceId as the userId for demonstration.
-    const userId = "user_123"; 
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userId = user.id; 
 
     const { data: conversations, error } = await supabaseServer
       .from('conversations')
