@@ -13,6 +13,9 @@ import { Label } from "@/components/ui/label";
 // Environment variables for API configuration
 const API_SERVER_URL = process.env.NEXT_PUBLIC_API_SERVER_URL;
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
+// Define your webhook URL for Evolution API events
+const EVOLUTION_WEBHOOK_URL = process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_URL || `${window.location.origin}/api/webhook/evolution`;
+
 
 type ConnectionState = "connected" | "disconnected" | "pending";
 
@@ -89,9 +92,9 @@ export default function WhatsappPage() {
           token: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15), // Simple random token
           qrcode: true,
           integration: "WHATSAPP-BAILEYS",
-          webhook: `https://your-saas-webhook.com/api/webhook/${currentInstanceId}`, // Placeholder webhook URL
+          webhook: EVOLUTION_WEBHOOK_URL, // Use the new webhook URL
           webhook_by_events: true,
-          events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"],
+          events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED", "INSTANCE_STATUS"], // Add more events
           proxy: {
             host: "proxy.example.com", // Placeholder proxy host
             port: "8080", // Placeholder proxy port
