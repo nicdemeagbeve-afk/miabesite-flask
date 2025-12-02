@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -18,84 +18,157 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, MessageSquare, Send, User, Bot, MessageSquareText } from "lucide-react"; // Added MessageSquareText
+import { Search, MessageSquare, Send, User, Bot, MessageSquareText, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner"; // Added toast import
+import { toast } from "sonner";
 
 interface Conversation {
   id: string;
-  contactName: string;
-  lastActivity: string;
+  contact_name: string;
+  contact_number: string;
+  last_activity: string;
   status: "En cours" | "Clôturé" | "Non-répondu";
-  unreadMessages: number;
+  unread_messages: number;
+  instance_id: string; // Added instance_id
+  user_id: string; // Added user_id
 }
 
 interface Message {
   id: string;
+  conversation_id: string;
   sender: "client" | "ai";
   text: string;
   timestamp: string;
+  evolution_message_id: string;
 }
-
-// NOTE: These mock conversations and messages are currently simulated.
-// To make them "real", you would need to implement a backend API endpoint
-// (e.g., /api/user/conversations and /api/user/conversations/{id}/messages)
-// that queries your Supabase `public.chat_messages` table and potentially
-// other tables (like `public.users` for contact names) to provide this data.
-const mockConversations: Conversation[] = [
-  { id: "conv-001", contactName: "Alice Dupont", lastActivity: "Il y a 5 min", status: "En cours", unreadMessages: 2 },
-  { id: "conv-002", contactName: "Bob Martin", lastActivity: "Il y a 1h", status: "Clôturé", unreadMessages: 0 },
-  { id: "conv-003", contactName: "Charlie Leblanc", lastActivity: "Hier", status: "Non-répondu", unreadMessages: 1 },
-  { id: "conv-004", contactName: "Diana Rousseau", lastActivity: "2 jours", status: "En cours", unreadMessages: 0 },
-  { id: "conv-005", contactName: "Eve Dubois", lastActivity: "3 jours", status: "Clôturé", unreadMessages: 0 },
-  { id: "conv-006", contactName: "Frank Thomas", lastActivity: "4 jours", status: "En cours", unreadMessages: 0 },
-  { id: "conv-007", contactName: "Grace Petit", lastActivity: "5 jours", status: "Non-répondu", unreadMessages: 0 },
-  { id: "conv-008", contactName: "Heidi Leroy", lastActivity: "6 jours", status: "En cours", unreadMessages: 0 },
-  { id: "conv-009", contactName: "Ivan Moreau", lastActivity: "1 semaine", status: "Clôturé", unreadMessages: 0 },
-  { id: "conv-010", contactName: "Julia Simon", lastActivity: "1 semaine", status: "En cours", unreadMessages: 0 },
-];
-
-const mockMessages: Record<string, Message[]> = {
-  "conv-001": [
-    { id: "msg1", sender: "client", text: "Bonjour, j'ai une question sur mon abonnement.", timestamp: "14:25" },
-    { id: "msg2", sender: "ai", text: "Bonjour Alice ! Je suis l'assistant IA de Synapse. Comment puis-je vous aider concernant votre abonnement ?", timestamp: "14:26" },
-    { id: "msg3", sender: "client", text: "Je voudrais savoir comment modifier mon plan.", timestamp: "14:28" },
-    { id: "msg4", sender: "ai", text: "Pour modifier votre plan, vous pouvez vous rendre dans la section 'Facturation' de votre tableau de bord. Vous y trouverez les options de mise à niveau ou de rétrogradation.", timestamp: "14:29" },
-    { id: "msg5", sender: "client", text: "Merci ! Et si j'ai besoin d'aide supplémentaire ?", timestamp: "14:30" },
-  ],
-  "conv-003": [
-    { id: "msg6", sender: "client", text: "Salut, mon bot ne répond plus.", timestamp: "Hier 10:00" },
-  ],
-  // Add more mock messages for other conversations as needed
-};
 
 export default function ChatHistoryPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("lastActivity");
+  const [sortBy, setSortBy] = useState<string>("last_activity"); // Changed to match DB field
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [manualNote, setManualNote] = useState("");
+  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [sendingNote, setSendingNote] = useState(false);
 
-  const filteredAndSortedConversations = mockConversations
+  // Placeholder for a unique user ID. In a real app, this would come from user auth.
+  const currentUserId = "user_123"; 
+
+  const fetchConversations = useCallback(async () => {
+    setLoadingConversations(true);
+    try {
+      const response = await fetch(`/api/chat-history/conversations?userId=${currentUserId}`); // Pass userId for filtering
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data: Conversation[] = await response.json();
+      setConversations(data);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      toast.error("Erreur lors du chargement des conversations.");
+    } finally {
+      setLoadingConversations(false);
+    }
+  }, [currentUserId]);
+
+  const fetchMessages = useCallback(async (conversationId: string) => {
+    setLoadingMessages(true);
+    try {
+      const response = await fetch(`/api/chat-history/conversations/${conversationId}/messages`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data: Message[] = await response.json();
+      setMessages(data);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      toast.error("Erreur lors du chargement des messages.");
+    } finally {
+      setLoadingMessages(false);
+    }
+  }, []);
+
+  const markConversationAsRead = useCallback(async (conversationId: string) => {
+    try {
+      const response = await fetch(`/api/chat-history/conversations/${conversationId}/mark-read`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      // Update the local state to reflect 0 unread messages
+      setConversations(prev => 
+        prev.map(conv => 
+          conv.id === conversationId ? { ...conv, unread_messages: 0 } : conv
+        )
+      );
+    } catch (error) {
+      console.error("Error marking conversation as read:", error);
+      toast.error("Erreur lors de la mise à jour du statut de lecture.");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
+
+  useEffect(() => {
+    if (selectedConversation) {
+      fetchMessages(selectedConversation.id);
+      if (selectedConversation.unread_messages > 0) {
+        markConversationAsRead(selectedConversation.id);
+      }
+    } else {
+      setMessages([]);
+    }
+  }, [selectedConversation, fetchMessages, markConversationAsRead]);
+
+  const filteredAndSortedConversations = conversations
     .filter((conv) => {
-      const matchesSearch = conv.contactName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = conv.contact_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            conv.contact_number.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = filterStatus === "all" || conv.status === filterStatus;
       return matchesSearch && matchesStatus;
     })
     .sort((a, b) => {
-      // Simple sorting for mock data, can be expanded for real dates
-      if (sortBy === "lastActivity") {
-        return a.lastActivity.localeCompare(b.lastActivity);
+      // Sort by last_activity (most recent first)
+      if (sortBy === "last_activity") {
+        return new Date(b.last_activity).getTime() - new Date(a.last_activity).getTime();
       }
       // Add other sorting logic if needed
       return 0;
     });
 
-  const handleAddNote = () => {
+  const handleAddNote = async () => {
     if (manualNote.trim() && selectedConversation) {
-      toast.success(`Note ajoutée à la conversation avec ${selectedConversation.contactName}`);
-      setManualNote("");
-      // In a real app, you'd send this note to your backend
+      setSendingNote(true);
+      try {
+        // In a real app, you'd send this note to your backend to be stored
+        // For now, we'll simulate it and add it as a local message from 'ai'
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+        const newNoteMessage: Message = {
+          id: `note-${Date.now()}`,
+          conversation_id: selectedConversation.id,
+          sender: "ai", // Assuming manual notes are from the AI/agent
+          text: `[Note Manuelle]: ${manualNote}`,
+          timestamp: new Date().toISOString(),
+          evolution_message_id: `manual-note-${Date.now()}`
+        };
+        setMessages(prev => [...prev, newNoteMessage]);
+        toast.success(`Note ajoutée à la conversation avec ${selectedConversation.contact_name}`);
+        setManualNote("");
+      } catch (error) {
+        console.error("Error adding note:", error);
+        toast.error("Erreur lors de l'ajout de la note.");
+      } finally {
+        setSendingNote(false);
+      }
     }
   };
 
@@ -144,7 +217,7 @@ export default function ChatHistoryPage() {
                     <SelectValue placeholder="Trier par" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="lastActivity">Dernière activité</SelectItem>
+                    <SelectItem value="last_activity">Dernière activité</SelectItem>
                     {/* Add more sort options if needed */}
                   </SelectContent>
                 </Select>
@@ -152,7 +225,12 @@ export default function ChatHistoryPage() {
             </div>
             <ScrollArea className="flex-1">
               <CardContent className="p-0">
-                {filteredAndSortedConversations.length > 0 ? (
+                {loadingConversations ? (
+                  <div className="flex flex-col items-center justify-center h-48">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="mt-4 text-muted-foreground">Chargement des conversations...</p>
+                  </div>
+                ) : filteredAndSortedConversations.length > 0 ? (
                   filteredAndSortedConversations.map((conv) => (
                     <div
                       key={conv.id}
@@ -162,8 +240,12 @@ export default function ChatHistoryPage() {
                       onClick={() => setSelectedConversation(conv)}
                     >
                       <div>
-                        <p className="font-medium">{conv.contactName}</p>
-                        <p className="text-sm text-muted-foreground">{conv.lastActivity}</p>
+                        <p className="font-medium">{conv.contact_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(conv.last_activity).toLocaleString("fr-FR", {
+                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge
@@ -177,9 +259,9 @@ export default function ChatHistoryPage() {
                         >
                           {conv.status}
                         </Badge>
-                        {conv.unreadMessages > 0 && (
+                        {conv.unread_messages > 0 && (
                           <Badge className="bg-red-500 hover:bg-red-500/90 text-white">
-                            {conv.unreadMessages}
+                            {conv.unread_messages}
                           </Badge>
                         )}
                       </div>
@@ -197,14 +279,19 @@ export default function ChatHistoryPage() {
           <div className="flex h-full flex-col">
             <CardHeader className="border-b p-4">
               <CardTitle className="text-lg">
-                {selectedConversation ? `Conversation avec ${selectedConversation.contactName}` : "Sélectionnez une conversation"}
+                {selectedConversation ? `Conversation avec ${selectedConversation.contact_name}` : "Sélectionnez une conversation"}
               </CardTitle>
             </CardHeader>
             <ScrollArea className="flex-1 p-4">
               {selectedConversation ? (
-                <div className="space-y-4">
-                  {mockMessages[selectedConversation.id]?.length > 0 ? (
-                    mockMessages[selectedConversation.id].map((message) => (
+                loadingMessages ? (
+                  <div className="flex flex-col items-center justify-center h-full">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="mt-4 text-muted-foreground">Chargement des messages...</p>
+                  </div>
+                ) : messages.length > 0 ? (
+                  <div className="space-y-4">
+                    {messages.map((message) => (
                       <div
                         key={message.id}
                         className={`flex ${
@@ -222,17 +309,17 @@ export default function ChatHistoryPage() {
                           <div>
                             <p className="text-sm">{message.text}</p>
                             <p className={`text-xs mt-1 ${message.sender === "client" ? "text-muted-foreground" : "text-white/80"}`}>
-                              {message.timestamp}
+                              {new Date(message.timestamp).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}
                             </p>
                           </div>
                           {message.sender === "ai" && <Bot className="h-5 w-5 flex-shrink-0" />}
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-center text-muted-foreground">Aucun message dans cette conversation.</p>
-                  )}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground">Aucun message dans cette conversation.</p>
+                )
               ) : (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
                   <MessageSquareText className="mr-2 h-5 w-5" />
@@ -248,8 +335,17 @@ export default function ChatHistoryPage() {
                   onChange={(e) => setManualNote(e.target.value)}
                   className="min-h-[60px]"
                 />
-                <Button onClick={handleAddNote} disabled={!manualNote.trim()}>
-                  <Send className="mr-2 h-4 w-4" /> Ajouter Note
+                <Button onClick={handleAddNote} disabled={!manualNote.trim() || sendingNote}>
+                  {sendingNote ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Ajout de la note...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" /> Ajouter Note
+                    </>
+                  )}
                 </Button>
               </div>
             )}
