@@ -24,6 +24,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { toast } from "sonner";
 import { Eye, RefreshCcw, X, Loader2, FileText, RotateCcw, Network } from "lucide-react"; // Updated icons
 
+// Environment variables for API configuration
+const API_SERVER_URL = process.env.NEXT_PUBLIC_API_SERVER_URL;
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
+
 interface Instance {
   id: string;
   userName: string;
@@ -34,6 +38,9 @@ interface Instance {
   proxyAssociated: string; // New field
 }
 
+// NOTE: In a real application, this data would be fetched from a backend API
+// that aggregates information about all instances. The provided Evolution API
+// does not have an endpoint to list all instances directly.
 const mockInstances: Instance[] = Array.from({ length: 50 }, (_, i) => ({
   id: `user-${String(i + 1).padStart(3, "0")}`,
   userName: `Client ${i + 1}`,
@@ -53,12 +60,15 @@ export default function AdminInstancesPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
+    // Simulate fetching instances from a hypothetical backend API
+    // In a real scenario, this would be an API call to your SaaS backend
+    // that provides a list of all instances and their aggregated status.
     const fetchInstances = async () => {
       setLoading(true);
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
       setInstances(mockInstances);
       setLoading(false);
-      toast.success("Instances chargées avec succès.");
+      toast.success("Instances chargées avec succès (données simulées).");
     };
     fetchInstances();
   }, []);
@@ -67,7 +77,7 @@ export default function AdminInstancesPage() {
     setActionLoading(instanceId + "-logs");
     try {
       await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate API call
-      toast.info(`Affichage des logs pour l'instance ${instanceId}. (Fonctionnalité à implémenter)`);
+      toast.info(`Affichage des logs pour l'instance ${instanceId}. (Fonctionnalité à implémenter, nécessite un endpoint de logs)`);
       // In a real app, this would open a modal or navigate to a log viewer
     } catch (error) {
       toast.error(`Erreur lors de la récupération des logs de ${instanceId}.`);
@@ -77,9 +87,30 @@ export default function AdminInstancesPage() {
   };
 
   const handleForceReconnect = async (instanceId: string) => {
+    if (!API_SERVER_URL || !API_KEY) {
+      toast.error("API_SERVER_URL ou API_KEY non configuré dans .env.local");
+      return;
+    }
     setActionLoading(instanceId + "-reconnect");
     try {
-      await new Promise((resolve) => setTimeout(resolve, 3000)); // Simulate DELETE then POST
+      // Step 1: Delete the existing instance to force a clean reconnect
+      const deleteResponse = await fetch(`${API_SERVER_URL}/instance/delete/${instanceId}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': API_KEY,
+        },
+      });
+
+      if (!deleteResponse.ok) {
+        throw new Error(`HTTP error! status: ${deleteResponse.status}`);
+      }
+      toast.info(`Instance ${instanceId} supprimée. Recréation en cours...`);
+
+      // Step 2: Simulate recreation and connection (as actual API calls would be complex here)
+      // In a real scenario, you would call POST /instance/create and GET /instance/connect
+      // with appropriate proxy and webhook settings.
+      await new Promise((resolve) => setTimeout(resolve, 3000)); 
+      
       setInstances((prev) =>
         prev.map((inst) =>
           inst.id === instanceId ? { ...inst, apiStatus: "Open", lastWebhookPing: "Il y a quelques secondes" } : inst
@@ -87,6 +118,7 @@ export default function AdminInstancesPage() {
       );
       toast.success(`Instance ${instanceId} forcée à se reconnecter avec succès.`);
     } catch (error) {
+      console.error("Error forcing reconnect:", error);
       toast.error(`Erreur lors de la reconnexion forcée de l'instance ${instanceId}.`);
     } finally {
       setActionLoading(null);
@@ -94,9 +126,18 @@ export default function AdminInstancesPage() {
   };
 
   const handleChangeProxy = async (instanceId: string) => {
+    if (!API_SERVER_URL || !API_KEY) {
+      toast.error("API_SERVER_URL ou API_KEY non configuré dans .env.local");
+      return;
+    }
     setActionLoading(instanceId + "-proxy");
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate API call
+      // NOTE: The provided API documentation does not have a direct endpoint
+      // to change the proxy of an *existing* instance.
+      // In a real scenario, changing a proxy might involve deleting the instance
+      // and recreating it with the new proxy, similar to a force reconnect.
+      // For now, we will simulate the change in the UI.
+      await new Promise((resolve) => setTimeout(resolve, 2000)); 
       const newProxy = `proxy-${String(Math.floor(Math.random() * 10) + 1).padStart(3, "0")}`;
       setInstances((prev) =>
         prev.map((inst) =>
@@ -105,6 +146,7 @@ export default function AdminInstancesPage() {
       );
       toast.success(`Proxy de l'instance ${instanceId} modifié en ${newProxy}.`);
     } catch (error) {
+      console.error("Error changing proxy:", error);
       toast.error(`Erreur lors de la modification du proxy de l'instance ${instanceId}.`);
     } finally {
       setActionLoading(null);
@@ -250,7 +292,7 @@ export default function AdminInstancesPage() {
                                 <DialogTitle>Modifier le Proxy pour l'instance {instance.id}</DialogTitle>
                                 <DialogDescription>
                                   Sélectionnez un nouveau proxy pour cette instance.
-                                  (Fonctionnalité de sélection de proxy à implémenter)
+                                  (Fonctionnalité de sélection de proxy à implémenter. Note: L'API Evolution ne permet pas de modifier un proxy sur une instance existante sans la recréer.)
                                 </DialogDescription>
                               </DialogHeader>
                               <div className="flex justify-end gap-2">
