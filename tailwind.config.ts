@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import { fontFamily } from "tailwindcss/defaultTheme";
 
 export default {
     darkMode: ["class"],
@@ -59,7 +60,11 @@ export default {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
-  			}
+  			},
+            // New Synapse AI specific colors
+            'synapse-primary': 'hsl(var(--synapse-primary))',
+            'synapse-secondary': 'hsl(var(--synapse-secondary))',
+            'synapse-accent-success': 'hsl(var(--synapse-accent-success))',
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
@@ -87,7 +92,13 @@ export default {
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out'
-  		}
+  		},
+        fontFamily: {
+            sans: ["var(--font-inter)", ...fontFamily.sans],
+            heading: ["var(--font-poppins)", ...fontFamily.sans],
+            geistSans: ["var(--font-geist-sans)", ...fontFamily.sans],
+            geistMono: ["var(--font-geist-mono)", ...fontFamily.mono],
+        },
   	}
   },
   plugins: [require("tailwindcss-animate")],

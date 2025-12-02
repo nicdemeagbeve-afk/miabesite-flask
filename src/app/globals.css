@@ -19,9 +19,9 @@
 
     --popover-foreground: 0 0% 3.9%;
 
-    --primary: 0 0% 9%;
+    --primary: 195 100% 50%; /* Vibrant Cyan/Sky Blue */
 
-    --primary-foreground: 0 0% 98%;
+    --primary-foreground: 0 0% 100%; /* White for contrast */
 
     --secondary: 0 0% 96.1%;
 
@@ -72,7 +72,13 @@
 
     --sidebar-border: 220 13% 91%;
 
-    --sidebar-ring: 217.2 91.2% 59.8%}
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* New Synapse AI specific colors */
+    --synapse-primary: 195 100% 50%; /* #00C4FF */
+    --synapse-secondary: 210 29% 24%; /* #2C3E50 */
+    --synapse-accent-success: 145 63% 49%; /* #2ECC71 */
+  }
   .dark {
 
     --background: 0 0% 3.9%;
@@ -87,9 +93,9 @@
 
     --popover-foreground: 0 0% 98%;
 
-    --primary: 0 0% 98%;
+    --primary: 195 100% 50%; /* Vibrant Cyan/Sky Blue */
 
-    --primary-foreground: 0 0% 9%;
+    --primary-foreground: 0 0% 100%; /* White for contrast */
 
     --secondary: 0 0% 14.9%;
 
@@ -138,7 +144,13 @@
 
     --sidebar-border: 240 3.7% 15.9%;
 
-    --sidebar-ring: 217.2 91.2% 59.8%}
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* New Synapse AI specific colors */
+    --synapse-primary: 195 100% 50%; /* #00C4FF */
+    --synapse-secondary: 210 29% 24%; /* #2C3E50 */
+    --synapse-accent-success: 145 63% 49%; /* #2ECC71 */
+  }
 }
 
 
@@ -148,6 +160,9 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
   }
 }

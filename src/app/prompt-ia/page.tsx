@@ -1,14 +1,181 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+// Define the form schema using Zod
+const formSchema = z.object({
+  mainPrompt: z
+    .string()
+    .min(10, { message: "Le prompt principal doit contenir au moins 10 caractères." })
+    .max(1000, { message: "Le prompt principal ne peut pas dépasser 1000 caractères." }),
+  ignoreCalls: z.boolean().optional(), // Make it optional in the schema
+  ignoreGroupMessages: z.boolean().optional(), // Make it optional in the schema
+});
+
+type SettingsFormValues = z.infer<typeof formSchema>;
+
 export default function PromptIaPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const form = useForm<SettingsFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      mainPrompt: "",
+      ignoreCalls: false, // Provide default here
+      ignoreGroupMessages: false, // Provide default here
+    },
+  });
+
+  // Simulate fetching initial settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      setIsLoading(true);
+      try {
+        // Simulate API call GET /instance/settings
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const fetchedSettings = {
+          mainPrompt: "Vous êtes un assistant IA amical et serviable pour Synapse AI. Votre rôle est de répondre aux questions des utilisateurs sur nos services, de les guider à travers le tableau de bord et de fournir un support de base. Soyez concis et précis.",
+          ignoreCalls: true,
+          ignoreGroupMessages: false,
+        };
+        form.reset(fetchedSettings); // Set form values
+        toast.success("Paramètres de l'IA chargés.");
+      } catch (error) {
+        toast.error("Erreur lors du chargement des paramètres de l'IA.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSettings();
+  }, [form]);
+
+  // Simulate saving settings
+  const onSubmit = async (values: SettingsFormValues) => {
+    setIsSaving(true);
+    try {
+      // Simulate API call POST /instance/setSettings
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      console.log("Settings saved:", values);
+      toast.success("Paramètres de l'IA sauvegardés avec succès !");
+    } catch (error) {
+      toast.error("Erreur lors de la sauvegarde des paramètres de l'IA.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-6">Prompt & IA 🧠</h1>
-      <p>C'est ici que l'utilisateur configure son IA.</p>
-      <div className="mt-8 p-6 bg-card rounded-lg shadow-sm">
-        <h2 className="text-xl font-semibold mb-4">Configuration de l'IA</h2>
-        <p className="text-muted-foreground">
-          Des options pour personnaliser le comportement de l'IA seront disponibles ici.
-        </p>
-      </div>
+      <p className="mb-6 text-muted-foreground">
+        C'est ici que vous personnalisez le comportement de votre IA. Décrivez sa personnalité, son domaine d'expertise et ses règles.
+      </p>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Configuration de l'IA</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center h-48">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="mt-4 text-muted-foreground">Chargement des paramètres...</p>
+            </div>
+          ) : (
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                <FormField
+                  control={form.control}
+                  name="mainPrompt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Le Prompt Principal</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Décrivez la personnalité de votre bot, son domaine d'expertise et ses règles."
+                          className="min-h-[150px]"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Ce prompt définit la base de la personnalité et des réponses de votre IA.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Règles & Filtres</h3>
+                  <FormField
+                    control={form.control}
+                    name="ignoreCalls"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>Ignorer les appels</FormLabel>
+                          <FormDescription>
+                            Si activé, le bot ignorera les appels entrants sur WhatsApp.
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="ignoreGroupMessages"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>Ignorer les messages de groupe</FormLabel>
+                          <FormDescription>
+                            Si activé, le bot ne répondra pas aux messages envoyés dans les groupes WhatsApp.
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sauvegarde en cours...
+                    </>
+                  ) : (
+                    "Sauvegarder les Paramètres Synapse"
+                  )}
+                </Button>
+              </form>
+            </Form>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
