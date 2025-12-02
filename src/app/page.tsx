@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ActivityChart } from "@/components/charts/activity-chart";
-import { CheckCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle, AlertTriangle, Loader2 } from "lucide-react"; // Import Loader2
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthContext"; // Import useAuth
@@ -217,7 +217,7 @@ export default function HomePage() {
           <CardContent>
             <div className="h-[200px]">
               {/* NOTE: Activity chart data is currently simulated.
-                  To make it "real", you would need a backend API endpoint
+                  To make it "réel", you would need a backend API endpoint
                   that provides historical message data for the user's instance. */}
               <ActivityChart />
             </div>

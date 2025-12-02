@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { User } from '@supabase/supabase-js';
+import { User, AuthChangeEvent, Session } from '@supabase/supabase-js'; // Import AuthChangeEvent and Session
 import { supabaseAuthClient } from '@/lib/supabase/auth-helpers';
 import { toast } from 'sonner';
 
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchUserAndInstance();
 
     const { data: authListener } = supabaseAuthClient.auth.onAuthStateChange(
-      (event, session) => {
+      (event: AuthChangeEvent, session: Session | null) => { // Explicitly type event and session
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
           fetchUserAndInstance();
         }
