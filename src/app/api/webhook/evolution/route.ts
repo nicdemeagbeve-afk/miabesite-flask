@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
+import OpenAI from 'openai'; // Import OpenAI SDK
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // Define the expected structure of the Evolution API webhook payload
 interface MessageUpsertData {
@@ -47,25 +53,28 @@ type EvolutionWebhookPayload =
   | { event: 'qr.code'; instance: string; id: string; data: QrCodeUpdateData }
   | { event: 'instance.status'; instance: string; id: string; data: InstanceStatusUpdateData };
 
-// Placeholder for AI API call
+// Real AI API call using OpenAI
 async function callAIApi(prompt: string, messageText: string): Promise<string> {
-  // In a real application, you would integrate with an actual AI service here (e.g., OpenAI, Google Gemini).
-  // This is a simplified mock for demonstration purposes.
-  console.log(`Calling AI with prompt: "${prompt}" and message: "${messageText}"`);
-  await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate AI processing time
-
-  if (messageText.toLowerCase().includes("bonjour")) {
-    return "Bonjour ! Comment puis-je vous aider aujourd'hui ?";
-  } else if (messageText.toLowerCase().includes("prix")) {
-    return "Nos prix varient en fonction du service. Pourriez-vous préciser votre demande ?";
-  } else if (messageText.toLowerCase().includes("merci")) {
-    return "De rien ! N'hésitez pas si vous avez d'autres questions.";
-  } else if (messageText.toLowerCase().includes("aide")) {
-    return "Je suis là pour vous aider. Dites-moi ce dont vous avez besoin.";
-  } else if (messageText.toLowerCase().includes("prompt")) {
-    return `Mon prompt actuel est : "${prompt}".`;
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("OPENAI_API_KEY is not configured.");
+    return "Désolé, l'intégration de l'IA n'est pas configurée correctement.";
   }
-  return "Je n'ai pas compris votre demande. Pouvez-vous reformuler ?";
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo", // You can choose other models like "gpt-4"
+      messages: [
+        { role: "system", content: prompt },
+        { role: "user", content: messageText },
+      ],
+      max_tokens: 150, // Limit the response length
+    });
+
+    return completion.choices[0].message.content || "Je n'ai pas pu générer de réponse.";
+  } catch (error) {
+    console.error("Error calling OpenAI API:", error);
+    return "Désolé, une erreur est survenue lors de la communication avec l'IA.";
+  }
 }
 
 export async function POST(request: Request) {
@@ -184,7 +193,7 @@ export async function POST(request: Request) {
             // Continue with default prompt if there's an error
           }
 
-          // 2. Call AI API (mocked for now)
+          // 2. Call AI API (now using OpenAI)
           const aiResponseText = await callAIApi(mainPrompt, text);
 
           // 3. Send AI response back via Evolution API
