@@ -163,11 +163,17 @@ export default function WhatsappPage() {
     if (!currentInstanceId) return;
 
     try {
-      // The API documentation provides DELETE /instance/delete, not a specific logout.
-      // For a temporary disconnect, we'll simulate or assume a soft disconnect API exists.
-      // For now, we'll just update the local state and show a success message.
-      // If a 'logout' endpoint is later provided, this should be updated.
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
+      const response = await fetch(`${API_SERVER_URL}/instance/logout/${currentInstanceId}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': API_KEY,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       setConnectionState("disconnected");
       setQrCode(null);
       setLinkingCode(null);

@@ -96,25 +96,20 @@ export default function AdminInstancesPage() {
     }
     setActionLoading(instanceId + "-reconnect");
     try {
-      // Step 1: Delete the existing instance to force a clean reconnect
-      const deleteResponse = await fetch(`${API_SERVER_URL}/instance/delete/${instanceId}`, {
-        method: 'DELETE',
+      // Use the Evolution API's restart endpoint for a cleaner reconnect
+      const response = await fetch(`${API_SERVER_URL}/instance/restart/${instanceId}`, {
+        method: 'PUT',
         headers: {
           'apikey': API_KEY,
         },
       });
 
-      if (!deleteResponse.ok) {
-        throw new Error(`HTTP error! status: ${deleteResponse.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      toast.info(`Instance ${instanceId} supprimée. Recréation en cours...`);
-
-      // Step 2: Simulate recreation and connection.
-      // NOTE: A full "real" recreation would involve calling POST /instance/create
-      // with appropriate proxy and webhook settings, and then potentially GET /instance/connect
-      // to get a new QR code. This would require more complex state management here.
-      // For simplicity, we simulate the state change after deletion.
-      await new Promise((resolve) => setTimeout(resolve, 3000)); 
+      
+      // Simulate a short delay for the instance to come back online
+      await new Promise((resolve) => setTimeout(resolve, 2000)); 
       
       setInstances((prev) =>
         prev.map((inst) =>
@@ -140,7 +135,7 @@ export default function AdminInstancesPage() {
       // NOTE: The provided API documentation does not have a direct endpoint
       // to change the proxy of an *existing* instance.
       // In a real scenario, changing a proxy might involve deleting the instance
-      // and recreating it with the new proxy, similar to a force reconnect.
+      // and recreating it with the new proxy, or updating it via a custom backend.
       // For now, we will simulate the change in the UI.
       await new Promise((resolve) => setTimeout(resolve, 2000)); 
       const newProxy = `proxy-${String(Math.floor(Math.random() * 10) + 1).padStart(3, "0")}`;
