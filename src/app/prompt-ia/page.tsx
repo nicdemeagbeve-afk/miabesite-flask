@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { supabaseClient } from '@/lib/supabase/client'; // Import client-side Supabase client
 
 // Environment variables for API configuration
 const API_SERVER_URL = process.env.NEXT_PUBLIC_API_SERVER_URL;
@@ -18,9 +19,7 @@ const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
 
 // Define the form schema using Zod
 const formSchema = z.object({
-  // mainPrompt is not directly managed by Evolution API settings endpoint.
-  // It would require a custom backend/database (e.g., Supabase) to persist.
-  // For now, we'll focus on settings directly managed by Evolution API.
+  mainPrompt: z.string().max(1000, { message: "Le prompt principal ne peut pas dépasser 1000 caractères." }).optional(),
   ignoreGroupMessages: z.boolean().optional(),
   alwaysOnline: z.boolean().optional(),
   rejectCalls: z.boolean().optional(),
@@ -34,11 +33,13 @@ export default function PromptIaPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Placeholder for a unique user ID. In a real app, this would come from user auth.
-  const currentInstanceId = "user_123"; 
+  const currentUserId = "user_123"; 
+  const currentInstanceId = "user_123"; // Assuming instanceId is same as userId for simplicity
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      mainPrompt: "Tu es un assistant IA serviable et amical.", // Default prompt
       ignoreGroupMessages: false,
       alwaysOnline: false,
       rejectCalls: false,
@@ -47,8 +48,9 @@ export default function PromptIaPage() {
   });
 
   const rejectCallsWatch = form.watch("rejectCalls");
+  const mainPromptWatch = form.watch("mainPrompt"); // Watch mainPrompt for character count
 
-  // Simulate fetching initial settings from Evolution API
+  // Fetch initial settings from Evolution API and Supabase
   useEffect(() => {
     const fetchSettings = async () => {
       if (!API_SERVER_URL || !API_KEY) {
@@ -59,24 +61,37 @@ export default function PromptIaPage() {
 
       setIsLoading(true);
       try {
-        const response = await fetch(`${API_SERVER_URL}/settings/find/${currentInstanceId}`, {
+        // Fetch Evolution API settings
+        const evolutionResponse = await fetch(`${API_SERVER_URL}/settings/find/${currentInstanceId}`, {
           headers: {
             'apikey': API_KEY,
           },
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (!evolutionResponse.ok) {
+          throw new Error(`HTTP error! status: ${evolutionResponse.status}`);
+        }
+        const fetchedEvolutionSettings = await evolutionResponse.json();
+
+        // Fetch Main Prompt from Supabase
+        const { data: aiPromptData, error: aiPromptError } = await supabaseClient
+          .from('ai_prompts')
+          .select('main_prompt')
+          .eq('instance_id', currentInstanceId)
+          .single();
+
+        if (aiPromptError && aiPromptError.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine
+          console.error('Error fetching AI prompt from Supabase:', aiPromptError);
+          toast.error("Erreur lors du chargement du prompt principal.");
         }
 
-        const fetchedSettings = await response.json();
-        
-        // Map Evolution API settings to form fields
+        // Map Evolution API settings and Supabase prompt to form fields
         form.reset({
-          ignoreGroupMessages: fetchedSettings.groups_ignore,
-          alwaysOnline: fetchedSettings.always_online,
-          rejectCalls: fetchedSettings.reject_call,
-          rejectCallMessage: fetchedSettings.msg_call || "Désolé, je ne peux pas prendre d'appels pour le moment. Veuillez envoyer un message.",
+          mainPrompt: aiPromptData?.main_prompt || "Tu es un assistant IA serviable et amical.",
+          ignoreGroupMessages: fetchedEvolutionSettings.groups_ignore,
+          alwaysOnline: fetchedEvolutionSettings.always_online,
+          rejectCalls: fetchedEvolutionSettings.reject_call,
+          rejectCallMessage: fetchedEvolutionSettings.msg_call || "Désolé, je ne peux pas prendre d'appels pour le moment. Veuillez envoyer un message.",
         });
         toast.success("Paramètres de l'IA chargés.");
       } catch (error) {
@@ -88,9 +103,9 @@ export default function PromptIaPage() {
     };
 
     fetchSettings();
-  }, [form, currentInstanceId]);
+  }, [form, currentInstanceId, currentUserId]); // Added currentUserId to dependencies
 
-  // Simulate saving settings to Evolution API
+  // Save settings to Evolution API and Supabase
   const onSubmit = async (values: SettingsFormValues) => {
     if (!API_SERVER_URL || !API_KEY) {
       toast.error("API_SERVER_URL ou API_KEY non configuré dans .env.local");
@@ -99,7 +114,8 @@ export default function PromptIaPage() {
 
     setIsSaving(true);
     try {
-      const response = await fetch(`${API_SERVER_URL}/settings/set/${currentInstanceId}`, {
+      // Save Evolution API settings
+      const evolutionResponse = await fetch(`${API_SERVER_URL}/settings/set/${currentInstanceId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,17 +123,34 @@ export default function PromptIaPage() {
         },
         body: JSON.stringify({
           reject_call: values.rejectCalls,
-          msg_call: values.rejectCalls ? values.rejectCallMessage : "", // Only send message if rejecting calls
+          msg_call: values.rejectCalls ? values.rejectCallMessage : "",
           groups_ignore: values.ignoreGroupMessages,
           always_online: values.alwaysOnline,
-          read_messages: true, // Assuming we always want to read messages
-          read_status: false, // Assuming we don't need to read status
-          sync_full_history: false, // Assuming we don't need full history sync via API
+          read_messages: true,
+          read_status: false,
+          sync_full_history: false,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!evolutionResponse.ok) {
+        throw new Error(`HTTP error! status: ${evolutionResponse.status}`);
+      }
+
+      // Save Main Prompt to Supabase
+      const { error: upsertPromptError } = await supabaseClient
+        .from('ai_prompts')
+        .upsert({
+          instance_id: currentInstanceId,
+          user_id: currentUserId,
+          main_prompt: values.mainPrompt,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'instance_id' });
+
+      if (upsertPromptError) {
+        console.error('Error saving AI prompt to Supabase:', upsertPromptError);
+        toast.error("Erreur lors de la sauvegarde du prompt principal.");
+        setIsSaving(false);
+        return;
       }
 
       console.log("Settings saved:", values);
@@ -135,7 +168,6 @@ export default function PromptIaPage() {
       <h1 className="text-3xl font-bold mb-6">Prompt & IA 🧠</h1>
       <p className="mb-6 text-muted-foreground">
         C'est ici que vous personnalisez le comportement de votre IA.
-        (Note: Le "Prompt Principal" nécessiterait un stockage personnalisé dans votre base de données, car l'API Evolution ne le gère pas directement.)
       </p>
 
       <Card>
@@ -151,8 +183,7 @@ export default function PromptIaPage() {
           ) : (
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                {/* Removed mainPrompt field as it's not directly managed by Evolution API settings */}
-                {/* <FormField
+                <FormField
                   control={form.control}
                   name="mainPrompt"
                   render={({ field }) => (
@@ -174,11 +205,10 @@ export default function PromptIaPage() {
                       <FormMessage />
                     </FormItem>
                   )}
-                /> */}
+                />
 
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Règles & Filtres</h3>
-                  {/* Removed ignoreCalls, consolidated with rejectCalls */}
                   <FormField
                     control={form.control}
                     name="ignoreGroupMessages"

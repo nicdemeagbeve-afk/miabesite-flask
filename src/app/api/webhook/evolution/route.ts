@@ -27,8 +27,6 @@ interface ConnectionUpdateData {
 }
 
 interface QrCodeUpdateData {
-  // Define structure for QR code updates if needed, based on API docs
-  // For now, we'll keep it minimal as the console.log only uses instanceId
   instance: {
     instanceName: string;
     qrcode: string; // base64 QR code
@@ -49,6 +47,26 @@ type EvolutionWebhookPayload =
   | { event: 'qr.code'; instance: string; id: string; data: QrCodeUpdateData }
   | { event: 'instance.status'; instance: string; id: string; data: InstanceStatusUpdateData };
 
+// Placeholder for AI API call
+async function callAIApi(prompt: string, messageText: string): Promise<string> {
+  // In a real application, you would integrate with an actual AI service here (e.g., OpenAI, Google Gemini).
+  // This is a simplified mock for demonstration purposes.
+  console.log(`Calling AI with prompt: "${prompt}" and message: "${messageText}"`);
+  await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate AI processing time
+
+  if (messageText.toLowerCase().includes("bonjour")) {
+    return "Bonjour ! Comment puis-je vous aider aujourd'hui ?";
+  } else if (messageText.toLowerCase().includes("prix")) {
+    return "Nos prix varient en fonction du service. Pourriez-vous préciser votre demande ?";
+  } else if (messageText.toLowerCase().includes("merci")) {
+    return "De rien ! N'hésitez pas si vous avez d'autres questions.";
+  } else if (messageText.toLowerCase().includes("aide")) {
+    return "Je suis là pour vous aider. Dites-moi ce dont vous avez besoin.";
+  } else if (messageText.toLowerCase().includes("prompt")) {
+    return `Mon prompt actuel est : "${prompt}".`;
+  }
+  return "Je n'ai pas compris votre demande. Pouvez-vous reformuler ?";
+}
 
 export async function POST(request: Request) {
   try {
@@ -130,7 +148,7 @@ export async function POST(request: Request) {
           }
         }
 
-        // Insert message
+        // Insert incoming message
         const { error: msgError } = await supabaseServer
           .from('messages')
           .insert({
@@ -151,24 +169,84 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: 'Failed to insert message' }, { status: 500 });
         }
 
+        // --- AI Interaction Logic ---
+        if (!isFromMe) { // Only process messages from the client
+          // 1. Fetch AI prompt for this instance from Supabase
+          const { data: aiPromptData, error: aiPromptError } = await supabaseServer
+            .from('ai_prompts')
+            .select('main_prompt')
+            .eq('instance_id', instanceId)
+            .single();
+
+          let mainPrompt = aiPromptData?.main_prompt || "Tu es un assistant IA serviable et amical.";
+          if (aiPromptError && aiPromptError.code !== 'PGRST116') {
+            console.error('Error fetching AI prompt for instance:', instanceId, aiPromptError);
+            // Continue with default prompt if there's an error
+          }
+
+          // 2. Call AI API (mocked for now)
+          const aiResponseText = await callAIApi(mainPrompt, text);
+
+          // 3. Send AI response back via Evolution API
+          const API_SERVER_URL = process.env.NEXT_PUBLIC_API_SERVER_URL;
+          const API_KEY = process.env.NEXT_PUBLIC_API_KEY; // Global API key for Evolution API
+
+          if (!API_SERVER_URL || !API_KEY) {
+            console.error("Evolution API_SERVER_URL or API_KEY not configured for sending messages.");
+            return NextResponse.json({ error: 'Evolution API not configured' }, { status: 500 });
+          }
+
+          const sendResponse = await fetch(`${API_SERVER_URL}/message/sendText/${instanceId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': API_KEY,
+            },
+            body: JSON.stringify({
+              number: contactNumber, // WhatsApp number of the recipient
+              textMessage: {
+                text: aiResponseText,
+              },
+            }),
+          });
+
+          if (!sendResponse.ok) {
+            const errorData = await sendResponse.json();
+            console.error('Error sending AI message via Evolution API:', sendResponse.status, errorData);
+            // Log this error but don't necessarily fail the webhook, as the incoming message was processed.
+          } else {
+            console.log(`AI response sent to ${contactNumber} via instance ${instanceId}`);
+            // 4. Store AI response in Supabase
+            const { error: aiMsgError } = await supabaseServer
+              .from('messages')
+              .insert({
+                conversation_id: conversation.id,
+                sender: 'ai',
+                text: aiResponseText,
+                timestamp: new Date().toISOString(),
+                // evolution_message_id: (optional, if Evolution API returns one for sent messages)
+              });
+
+            if (aiMsgError) {
+              console.error('Error inserting AI response message:', aiMsgError);
+            }
+          }
+        }
+
         return NextResponse.json({ message: 'Message processed successfully' }, { status: 200 });
       }
 
       case 'connection.update': {
-        // Handle connection status updates (e.g., 'open', 'close', 'connecting')
-        // You might want to update a 'status' field in your 'instances' table in Supabase
         console.log(`Instance ${instanceId} connection status updated: ${data.instance.state}`);
         return NextResponse.json({ message: 'Connection update processed' }, { status: 200 });
       }
 
       case 'qr.code': {
-        // Handle QR code updates (e.g., store the QR code in a temporary location or notify the user)
         console.log(`Instance ${instanceId} QR code updated.`);
         return NextResponse.json({ message: 'QR code update processed' }, { status: 200 });
       }
 
       case 'instance.status': {
-        // Handle instance status updates (e.g., 'created', 'ready', 'error')
         console.log(`Instance ${instanceId} status updated.`);
         return NextResponse.json({ message: 'Instance status update processed' }, { status: 200 });
       }
