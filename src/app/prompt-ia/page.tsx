@@ -12,17 +12,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
+// Environment variables for API configuration
+const API_SERVER_URL = process.env.NEXT_PUBLIC_API_SERVER_URL;
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
+
 // Define the form schema using Zod
 const formSchema = z.object({
-  mainPrompt: z
-    .string()
-    .min(10, { message: "Le prompt principal doit contenir au moins 10 caractères." })
-    .max(1000, { message: "Le prompt principal ne peut pas dépasser 1000 caractères." }),
-  ignoreCalls: z.boolean().optional(),
+  // mainPrompt is not directly managed by Evolution API settings endpoint.
+  // It would require a custom backend/database (e.g., Supabase) to persist.
+  // For now, we'll focus on settings directly managed by Evolution API.
   ignoreGroupMessages: z.boolean().optional(),
-  alwaysOnline: z.boolean().optional(), // New field
-  rejectCalls: z.boolean().optional(), // New field
-  rejectCallMessage: z.string().max(200, { message: "Le message de rejet ne peut pas dépasser 200 caractères." }).optional(), // New conditional field
+  alwaysOnline: z.boolean().optional(),
+  rejectCalls: z.boolean().optional(),
+  rejectCallMessage: z.string().max(200, { message: "Le message de rejet ne peut pas dépasser 200 caractères." }).optional(),
 });
 
 type SettingsFormValues = z.infer<typeof formSchema>;
@@ -31,39 +33,54 @@ export default function PromptIaPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Placeholder for a unique user ID. In a real app, this would come from user auth.
+  const currentInstanceId = "user_123"; 
+
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      mainPrompt: "",
-      ignoreCalls: false,
       ignoreGroupMessages: false,
-      alwaysOnline: false, // Default for new field
-      rejectCalls: false, // Default for new field
-      rejectCallMessage: "Désolé, je ne peux pas prendre d'appels pour le moment. Veuillez envoyer un message.", // Default for new field
+      alwaysOnline: false,
+      rejectCalls: false,
+      rejectCallMessage: "Désolé, je ne peux pas prendre d'appels pour le moment. Veuillez envoyer un message.",
     },
   });
 
-  const mainPromptWatch = form.watch("mainPrompt");
   const rejectCallsWatch = form.watch("rejectCalls");
 
-  // Simulate fetching initial settings
+  // Simulate fetching initial settings from Evolution API
   useEffect(() => {
     const fetchSettings = async () => {
+      if (!API_SERVER_URL || !API_KEY) {
+        toast.error("API_SERVER_URL ou API_KEY non configuré dans .env.local");
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
-        // Simulate API call GET /instance/settings
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        const fetchedSettings = {
-          mainPrompt: "Vous êtes un assistant IA amical et serviable pour Synapse AI. Votre rôle est de répondre aux questions des utilisateurs sur nos services, de les guider à travers le tableau de bord et de fournir un support de base. Soyez concis et précis.",
-          ignoreCalls: true,
-          ignoreGroupMessages: false,
-          alwaysOnline: true,
-          rejectCalls: false,
-          rejectCallMessage: "Désolé, je ne peux pas prendre d'appels pour le moment. Veuillez envoyer un message.",
-        };
-        form.reset(fetchedSettings); // Set form values
+        const response = await fetch(`${API_SERVER_URL}/settings/find/${currentInstanceId}`, {
+          headers: {
+            'apikey': API_KEY,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const fetchedSettings = await response.json();
+        
+        // Map Evolution API settings to form fields
+        form.reset({
+          ignoreGroupMessages: fetchedSettings.groups_ignore,
+          alwaysOnline: fetchedSettings.always_online,
+          rejectCalls: fetchedSettings.reject_call,
+          rejectCallMessage: fetchedSettings.msg_call || "Désolé, je ne peux pas prendre d'appels pour le moment. Veuillez envoyer un message.",
+        });
         toast.success("Paramètres de l'IA chargés.");
       } catch (error) {
+        console.error("Error fetching AI settings:", error);
         toast.error("Erreur lors du chargement des paramètres de l'IA.");
       } finally {
         setIsLoading(false);
@@ -71,17 +88,42 @@ export default function PromptIaPage() {
     };
 
     fetchSettings();
-  }, [form]);
+  }, [form, currentInstanceId]);
 
-  // Simulate saving settings
+  // Simulate saving settings to Evolution API
   const onSubmit = async (values: SettingsFormValues) => {
+    if (!API_SERVER_URL || !API_KEY) {
+      toast.error("API_SERVER_URL ou API_KEY non configuré dans .env.local");
+      return;
+    }
+
     setIsSaving(true);
     try {
-      // Simulate API call POST /instance/setSettings
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const response = await fetch(`${API_SERVER_URL}/settings/set/${currentInstanceId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': API_KEY,
+        },
+        body: JSON.stringify({
+          reject_call: values.rejectCalls,
+          msg_call: values.rejectCalls ? values.rejectCallMessage : "", // Only send message if rejecting calls
+          groups_ignore: values.ignoreGroupMessages,
+          always_online: values.alwaysOnline,
+          read_messages: true, // Assuming we always want to read messages
+          read_status: false, // Assuming we don't need to read status
+          sync_full_history: false, // Assuming we don't need full history sync via API
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       console.log("Settings saved:", values);
       toast.success("Paramètres de l'IA sauvegardés avec succès !");
     } catch (error) {
+      console.error("Error saving AI settings:", error);
       toast.error("Erreur lors de la sauvegarde des paramètres de l'IA.");
     } finally {
       setIsSaving(false);
@@ -92,7 +134,8 @@ export default function PromptIaPage() {
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-6">Prompt & IA 🧠</h1>
       <p className="mb-6 text-muted-foreground">
-        C'est ici que vous personnalisez le comportement de votre IA. Décrivez sa personnalité, son domaine d'expertise et ses règles.
+        C'est ici que vous personnalisez le comportement de votre IA.
+        (Note: Le "Prompt Principal" nécessiterait un stockage personnalisé dans votre base de données, car l'API Evolution ne le gère pas directement.)
       </p>
 
       <Card>
@@ -108,7 +151,8 @@ export default function PromptIaPage() {
           ) : (
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <FormField
+                {/* Removed mainPrompt field as it's not directly managed by Evolution API settings */}
+                {/* <FormField
                   control={form.control}
                   name="mainPrompt"
                   render={({ field }) => (
@@ -130,30 +174,11 @@ export default function PromptIaPage() {
                       <FormMessage />
                     </FormItem>
                   )}
-                />
+                /> */}
 
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Règles & Filtres</h3>
-                  <FormField
-                    control={form.control}
-                    name="ignoreCalls"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>Ignorer les appels</FormLabel>
-                          <FormDescription>
-                            Si activé, le bot ignorera les appels entrants sur WhatsApp.
-                          </FormDescription>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
+                  {/* Removed ignoreCalls, consolidated with rejectCalls */}
                   <FormField
                     control={form.control}
                     name="ignoreGroupMessages"

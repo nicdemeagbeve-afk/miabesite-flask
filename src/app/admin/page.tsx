@@ -1,9 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ListChecks, ServerCog, AlertTriangle, ShieldAlert } from "lucide-react"; // Added AlertTriangle and ShieldAlert icons
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert component
-import { Progress } from "@/components/ui/progress"; // Import Progress component
+import { ListChecks, ServerCog, AlertTriangle, ShieldAlert, ScrollText } from "lucide-react"; // Added ScrollText icon
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 
 export default function AdminDashboardPage() {
   // Simulated KPI data
@@ -99,8 +99,8 @@ export default function AdminDashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Supervision des Instances et Gestion des Proxies */}
-      <div className="grid gap-6 md:grid-cols-2">
+      {/* Supervision des Instances et Gestion des Proxies et Logs */}
+      <div className="grid gap-6 md:grid-cols-3"> {/* Changed to 3 columns */}
         <Card>
           <CardHeader>
             <CardTitle>Supervision des Instances</CardTitle>
@@ -127,6 +127,21 @@ export default function AdminDashboardPage() {
             <Button asChild>
               <Link href="/admin/proxies">
                 <ServerCog className="mr-2 h-4 w-4" /> Gérer les Proxies
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+        <Card> {/* New card for Logs */}
+          <CardHeader>
+            <CardTitle>Logs en Temps Réel</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Accédez aux logs système et d'instances pour un diagnostic rapide.
+            </p>
+            <Button asChild>
+              <Link href="/admin/logs">
+                <ScrollText className="mr-2 h-4 w-4" /> Voir les Logs
               </Link>
             </Button>
           </CardContent>
