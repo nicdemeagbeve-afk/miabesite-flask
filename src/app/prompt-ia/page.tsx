@@ -18,8 +18,11 @@ const formSchema = z.object({
     .string()
     .min(10, { message: "Le prompt principal doit contenir au moins 10 caractères." })
     .max(1000, { message: "Le prompt principal ne peut pas dépasser 1000 caractères." }),
-  ignoreCalls: z.boolean().optional(), // Make it optional in the schema
-  ignoreGroupMessages: z.boolean().optional(), // Make it optional in the schema
+  ignoreCalls: z.boolean().optional(),
+  ignoreGroupMessages: z.boolean().optional(),
+  alwaysOnline: z.boolean().optional(), // New field
+  rejectCalls: z.boolean().optional(), // New field
+  rejectCallMessage: z.string().max(200, { message: "Le message de rejet ne peut pas dépasser 200 caractères." }).optional(), // New conditional field
 });
 
 type SettingsFormValues = z.infer<typeof formSchema>;
@@ -32,10 +35,16 @@ export default function PromptIaPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       mainPrompt: "",
-      ignoreCalls: false, // Provide default here
-      ignoreGroupMessages: false, // Provide default here
+      ignoreCalls: false,
+      ignoreGroupMessages: false,
+      alwaysOnline: false, // Default for new field
+      rejectCalls: false, // Default for new field
+      rejectCallMessage: "Désolé, je ne peux pas prendre d'appels pour le moment. Veuillez envoyer un message.", // Default for new field
     },
   });
+
+  const mainPromptWatch = form.watch("mainPrompt");
+  const rejectCallsWatch = form.watch("rejectCalls");
 
   // Simulate fetching initial settings
   useEffect(() => {
@@ -48,6 +57,9 @@ export default function PromptIaPage() {
           mainPrompt: "Vous êtes un assistant IA amical et serviable pour Synapse AI. Votre rôle est de répondre aux questions des utilisateurs sur nos services, de les guider à travers le tableau de bord et de fournir un support de base. Soyez concis et précis.",
           ignoreCalls: true,
           ignoreGroupMessages: false,
+          alwaysOnline: true,
+          rejectCalls: false,
+          rejectCallMessage: "Désolé, je ne peux pas prendre d'appels pour le moment. Veuillez envoyer un message.",
         };
         form.reset(fetchedSettings); // Set form values
         toast.success("Paramètres de l'IA chargés.");
@@ -111,6 +123,9 @@ export default function PromptIaPage() {
                       </FormControl>
                       <FormDescription>
                         Ce prompt définit la base de la personnalité et des réponses de votre IA.
+                        <span className="float-right text-xs text-muted-foreground">
+                          {mainPromptWatch?.length || 0} / 1000 caractères
+                        </span>
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -159,6 +174,68 @@ export default function PromptIaPage() {
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={form.control}
+                    name="alwaysOnline"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>Toujours en ligne</FormLabel>
+                          <FormDescription>
+                            Si activé, le bot apparaîtra toujours en ligne sur WhatsApp.
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="rejectCalls"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>Rejeter les appels</FormLabel>
+                          <FormDescription>
+                            Si activé, le bot rejettera automatiquement les appels entrants.
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  {rejectCallsWatch && (
+                    <FormField
+                      control={form.control}
+                      name="rejectCallMessage"
+                      render={({ field }) => (
+                        <FormItem className="ml-8 mt-4">
+                          <FormLabel>Message en cas de rejet d'appel</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Ex: Désolé, je ne peux pas prendre d'appels pour le moment. Veuillez envoyer un message."
+                              className="min-h-[80px]"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Ce message sera envoyé lorsque le bot rejettera un appel.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                 </div>
 
                 <Button type="submit" disabled={isSaving}>
