@@ -21,6 +21,8 @@ const EVOLUTION_WEBHOOK_URL = process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_URL || `
 
 type ConnectionState = "connected" | "disconnected" | "pending";
 
+export const dynamic = 'force-dynamic';
+
 export default function WhatsappPage() {
   const { userId, instanceId, loading: authLoading } = useAuth(); // Use AuthContext
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
