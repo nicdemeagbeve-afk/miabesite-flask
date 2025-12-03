@@ -1,11 +1,19 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ListChecks, ServerCog, AlertTriangle, ShieldAlert, ScrollText } from "lucide-react"; // Added ScrollText icon
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/components/auth/AuthContext";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 export default function AdminDashboardPage() {
+  const { userId, loading: authLoading } = useAuth();
+  const router = useRouter();
+
   // Simulated KPI data
   const activeInstances = 955;
   const totalInstances = 1000;
@@ -13,11 +21,25 @@ export default function AdminDashboardPage() {
   const cpuUsage = 75; // in percentage
   const bannedIPs = 0;
 
+  if (authLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Chargement de l'utilisateur...</p>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    router.push('/login');
+    return null;
+  }
+
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-6">Tableau de Bord Admin 🛡️</h1>
       <p className="mb-6 text-muted-foreground">
-        Vue d'ensemble et gestion des opérations de la plateforme Synapse AI.
+        Vue d'overview et gestion des opérations de la plateforme Synapse AI.
       </p>
 
       {/* KPI Critiques - Santé de la Flotte Synapse */}

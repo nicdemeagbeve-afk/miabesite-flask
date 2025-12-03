@@ -26,13 +26,18 @@ const navItems: NavItem[] = [
 
 export function MainSidebar() {
   const pathname = usePathname();
-  const { userId, signOut } = useAuth(); // Use AuthContext
+  const { userId, signOut, loading: authLoading } = useAuth(); // Use AuthContext
   const router = useRouter();
 
   const handleSignOut = async () => {
     await signOut();
     router.push('/login'); // Redirect to login page after sign out
   };
+
+  // Don't render sidebar content until auth state is known
+  if (authLoading) {
+    return null;
+  }
 
   return (
     <Sidebar className="w-64 p-4 fixed h-full flex flex-col">

@@ -1,6 +1,28 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/components/auth/AuthContext";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 export default function AdminProxiesPage() {
+  const { userId, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  if (authLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Chargement de l'utilisateur...</p>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    router.push('/login');
+    return null;
+  }
+
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-6">Gestion des Proxies 🌐</h1>

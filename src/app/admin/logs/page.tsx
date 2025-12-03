@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth/AuthContext";
+import { useRouter } from "next/navigation";
 
 interface LogEntry {
   id: number;
@@ -15,10 +17,17 @@ interface LogEntry {
 }
 
 export default function AdminLogsPage() {
+  const { userId, loading: authLoading } = useAuth();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
+    if (authLoading || !userId) {
+      setLoading(true);
+      return;
+    }
+
     // Simulate fetching initial logs
     const fetchInitialLogs = async () => {
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
@@ -48,7 +57,21 @@ export default function AdminLogsPage() {
     }, 3000); // Add a new log every 3 seconds
 
     return () => clearInterval(interval);
-  }, [logs.length]); // Dependency on logs.length to ensure unique IDs
+  }, [logs.length, authLoading, userId]); // Dependency on logs.length to ensure unique IDs
+
+  if (authLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Chargement de l'utilisateur...</p>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    router.push('/login');
+    return null;
+  }
 
   return (
     <div className="p-8">

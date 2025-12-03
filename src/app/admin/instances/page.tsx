@@ -23,6 +23,8 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Eye, RefreshCcw, X, Loader2, FileText, RotateCcw, Network } from "lucide-react"; // Updated icons
+import { useAuth } from "@/components/auth/AuthContext";
+import { useRouter } from "next/navigation";
 
 // Environment variables for API configuration
 const API_SERVER_URL = process.env.NEXT_PUBLIC_API_SERVER_URL;
@@ -59,12 +61,15 @@ interface Instance {
 }
 
 export default function AdminInstancesPage() {
+  const { userId, loading: authLoading } = useAuth();
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterApiStatus, setFilterApiStatus] = useState<string>("all");
   const [filterWebhookPing, setFilterWebhookPing] = useState<string>("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const router = useRouter();
 
   const fetchInstances = async () => {
     if (!API_SERVER_URL || !API_KEY) {
@@ -111,8 +116,10 @@ export default function AdminInstancesPage() {
   };
 
   useEffect(() => {
-    fetchInstances();
-  }, []); // Exécute une seule fois au montage du composant
+    if (!authLoading && userId) {
+      fetchInstances();
+    }
+  }, [authLoading, userId]); // Exécute une seule fois au montage du composant
 
   const handleViewLogs = async (instanceId: string) => {
     setActionLoading(instanceId + "-logs");
@@ -205,6 +212,20 @@ export default function AdminInstancesPage() {
       filterWebhookPing === "all" || (filterWebhookPing === "ok" && instance.lastWebhookPing !== "Jamais") || (filterWebhookPing === "nok" && instance.lastWebhookPing === "Jamais");
     return matchesSearch && matchesApiStatus && matchesWebhookPing;
   });
+
+  if (authLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-8">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Chargement de l'utilisateur...</p>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    router.push('/login');
+    return null;
+  }
 
   return (
     <div className="p-8">

@@ -97,7 +97,7 @@ export default function PromptIaPage() {
           ignoreGroupMessages: fetchedEvolutionSettings.groups_ignore,
           alwaysOnline: fetchedEvolutionSettings.always_online,
           rejectCalls: fetchedEvolutionSettings.reject_call,
-          rejectCallMessage: fetchedEvolutionSettings.msg_call || "Désolé, je ne peux pas prendre d'appels pour le moment. Veuillez envoyer un message.",
+          rejectCallMessage: fetchedEvolutionSettings.reject_call ? (fetchedEvolutionSettings.msg_call || "Désolé, je ne peux pas prendre d'appels pour le moment. Veuillez envoyer un message.") : "Désolé, je ne peux pas prendre d'appels pour le moment. Veuillez envoyer un message.",
         });
         toast.success("Paramètres de l'IA chargés.");
       } catch (error) {
