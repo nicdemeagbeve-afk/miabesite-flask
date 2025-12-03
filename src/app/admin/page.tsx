@@ -9,9 +9,10 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 export default function AdminDashboardPage() {
-  const { userId, loading: authLoading } = useAuth();
+  const { userId, role, loading: authLoading } = useAuth();
   const router = useRouter();
 
   // Simulated KPI data
@@ -21,18 +22,19 @@ export default function AdminDashboardPage() {
   const cpuUsage = 75; // in percentage
   const bannedIPs = 0;
 
-  if (authLoading) {
+  useEffect(() => {
+    if (!authLoading && (!userId || role !== 'admin')) {
+      router.push('/'); // Redirect non-admin users to home
+    }
+  }, [authLoading, userId, role, router]);
+
+  if (authLoading || !userId || role !== 'admin') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="mt-4 text-muted-foreground">Chargement de l'utilisateur...</p>
       </div>
     );
-  }
-
-  if (!userId) {
-    router.push('/login');
-    return null;
   }
 
   return (

@@ -13,6 +13,7 @@ interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
+  adminOnly?: boolean; // New property to mark admin-only items
 }
 
 const navItems: NavItem[] = [
@@ -21,12 +22,12 @@ const navItems: NavItem[] = [
   { href: "/prompt-ia", label: "Prompt & IA", icon: Brain },
   { href: "/chat-history", label: "Historique des Chats", icon: MessageSquareText },
   { href: "/billing", label: "Facturation", icon: CreditCard },
-  { href: "/admin", label: "Admin", icon: Shield },
+  { href: "/admin", label: "Admin", icon: Shield, adminOnly: true }, // Mark as adminOnly
 ];
 
 export function MainSidebar() {
   const pathname = usePathname();
-  const { userId, signOut, loading: authLoading } = useAuth(); // Use AuthContext
+  const { userId, role, signOut, loading: authLoading } = useAuth(); // Use AuthContext and get role
   const router = useRouter();
 
   const handleSignOut = async () => {
@@ -44,6 +45,11 @@ export function MainSidebar() {
       <div className="mb-8 text-2xl font-bold text-primary">Synapse AI</div>
       <nav className="flex flex-col space-y-2 flex-1"> {/* flex-1 to push logout to bottom */}
         {navItems.map((item) => {
+          // Only render admin-only items if the user is an admin
+          if (item.adminOnly && role !== 'admin') {
+            return null;
+          }
+
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           const Icon = item.icon;
           return (

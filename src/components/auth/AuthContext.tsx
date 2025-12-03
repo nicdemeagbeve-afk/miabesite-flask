@@ -9,6 +9,7 @@ interface AuthContextType {
   user: User | null;
   userId: string | null;
   instanceId: string | null;
+  role: string | null; // Added role
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -19,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [instanceId, setInstanceId] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null); // State for role
   const [loading, setLoading] = useState(true);
 
   const fetchUserAndInstance = useCallback(async () => {
@@ -29,8 +31,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (fetchedUser) {
       setInstanceId(fetchedUser.id);
+
+      // Fetch user role from profiles table
+      const { data: profile, error: profileError } = await supabaseAuthClient
+        .from('profiles')
+        .select('role')
+        .eq('id', fetchedUser.id)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine for new users
+        console.error('Error fetching user profile:', profileError);
+        setRole(null);
+      } else {
+        setRole(profile?.role || 'user'); // Default to 'user' if no role found
+      }
     } else {
       setInstanceId(null);
+      setRole(null);
     }
     setLoading(false);
   }, []);
@@ -61,11 +78,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setUserId(null);
       setInstanceId(null);
+      setRole(null);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, userId, instanceId, loading, signOut }}>
+    <AuthContext.Provider value={{ user, userId, instanceId, role, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

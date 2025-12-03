@@ -17,13 +17,19 @@ interface LogEntry {
 }
 
 export default function AdminLogsPage() {
-  const { userId, loading: authLoading } = useAuth();
+  const { userId, role, loading: authLoading } = useAuth();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    if (authLoading || !userId) {
+    if (!authLoading && (!userId || role !== 'admin')) {
+      router.push('/'); // Redirect non-admin users to home
+    }
+  }, [authLoading, userId, role, router]);
+
+  useEffect(() => {
+    if (authLoading || !userId || role !== 'admin') {
       setLoading(true);
       return;
     }
@@ -57,20 +63,15 @@ export default function AdminLogsPage() {
     }, 3000); // Add a new log every 3 seconds
 
     return () => clearInterval(interval);
-  }, [logs.length, authLoading, userId]); // Dependency on logs.length to ensure unique IDs
+  }, [logs.length, authLoading, userId, role]); // Dependency on logs.length to ensure unique IDs
 
-  if (authLoading) {
+  if (authLoading || !userId || role !== 'admin') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="mt-4 text-muted-foreground">Chargement de l'utilisateur...</p>
       </div>
     );
-  }
-
-  if (!userId) {
-    router.push('/login');
-    return null;
   }
 
   return (

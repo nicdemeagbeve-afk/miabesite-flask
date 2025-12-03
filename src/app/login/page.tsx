@@ -96,6 +96,7 @@ export default function LoginPage() {
     if (signUpError) {
       toast.error(signUpError.message);
     } else {
+      localStorage.setItem('signup_email_for_confirmation', values.email); // Store email in localStorage
       toast.success("Inscription réussie ! Veuillez vérifier votre email pour confirmer votre compte.");
       router.push('/confirm-email'); // Redirect to a page to enter the confirmation code
     }

@@ -61,7 +61,7 @@ interface Instance {
 }
 
 export default function AdminInstancesPage() {
-  const { userId, loading: authLoading } = useAuth();
+  const { userId, role, loading: authLoading } = useAuth();
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -70,6 +70,12 @@ export default function AdminInstancesPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && (!userId || role !== 'admin')) {
+      router.push('/'); // Redirect non-admin users to home
+    }
+  }, [authLoading, userId, role, router]);
 
   const fetchInstances = async () => {
     if (!API_SERVER_URL || !API_KEY) {
@@ -116,10 +122,10 @@ export default function AdminInstancesPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && userId) {
+    if (!authLoading && userId && role === 'admin') {
       fetchInstances();
     }
-  }, [authLoading, userId]); // Exécute une seule fois au montage du composant
+  }, [authLoading, userId, role]); // Exécute une seule fois au montage du composant
 
   const handleViewLogs = async (instanceId: string) => {
     setActionLoading(instanceId + "-logs");
@@ -213,18 +219,13 @@ export default function AdminInstancesPage() {
     return matchesSearch && matchesApiStatus && matchesWebhookPing;
   });
 
-  if (authLoading) {
+  if (authLoading || !userId || role !== 'admin') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="mt-4 text-muted-foreground">Chargement de l'utilisateur...</p>
       </div>
     );
-  }
-
-  if (!userId) {
-    router.push('/login');
-    return null;
   }
 
   return (

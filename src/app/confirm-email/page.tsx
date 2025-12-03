@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAuthClient } from '@/lib/supabase/auth-helpers';
 import { Button } from '@/components/ui/button';
@@ -12,10 +12,9 @@ import { Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'; // Added this import
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 const confirmEmailSchema = z.object({
-  email: z.string().email({ message: "Veuillez entrer une adresse email valide." }),
   token: z.string().min(6, { message: "Le code de confirmation doit contenir 6 chiffres." }).max(6, { message: "Le code de confirmation doit contenir 6 chiffres." }),
 });
 
@@ -23,20 +22,36 @@ type ConfirmEmailFormValues = z.infer<typeof confirmEmailSchema>;
 
 export default function ConfirmEmailPage() {
   const [loading, setLoading] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null); // State to store email from localStorage
   const router = useRouter();
 
   const form = useForm<ConfirmEmailFormValues>({
     resolver: zodResolver(confirmEmailSchema),
     defaultValues: {
-      email: '',
       token: '',
     },
   });
 
+  useEffect(() => {
+    // Retrieve email from localStorage
+    const email = localStorage.getItem('signup_email_for_confirmation');
+    if (email) {
+      setUserEmail(email);
+    } else {
+      toast.error("Email non trouvé. Veuillez vous inscrire à nouveau.");
+      router.push('/login'); // Redirect if email is not found
+    }
+  }, [router]);
+
   const handleConfirmEmail = async (values: ConfirmEmailFormValues) => {
+    if (!userEmail) {
+      toast.error("Email non disponible pour la confirmation.");
+      return;
+    }
+
     setLoading(true);
     const { error } = await supabaseAuthClient.auth.verifyOtp({
-      email: values.email,
+      email: userEmail,
       token: values.token,
       type: 'email',
     });
@@ -45,6 +60,7 @@ export default function ConfirmEmailPage() {
       toast.error(error.message);
     } else {
       toast.success("Email confirmé avec succès ! Vous pouvez maintenant vous connecter.");
+      localStorage.removeItem('signup_email_for_confirmation'); // Clean up localStorage
       router.push('/login'); // Redirect to login page after successful confirmation
     }
     setLoading(false);
@@ -60,27 +76,8 @@ export default function ConfirmEmailPage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleConfirmEmail)} className="space-y-4">
               <p className="text-sm text-muted-foreground text-center mb-4">
-                Un code de confirmation a été envoyé à votre adresse email. Veuillez le saisir ci-dessous.
+                Un code de confirmation a été envoyé à votre adresse email : <span className="font-semibold text-foreground">{userEmail || 'Chargement...'}</span>. Veuillez le saisir ci-dessous.
               </p>
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel htmlFor="email">Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="votre@email.com"
-                        {...field}
-                        required
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <FormField
                 control={form.control}
                 name="token"
@@ -101,7 +98,7 @@ export default function ConfirmEmailPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={loading} className="w-full">
+              <Button type="submit" disabled={loading || !userEmail} className="w-full">
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Confirmer
               </Button>

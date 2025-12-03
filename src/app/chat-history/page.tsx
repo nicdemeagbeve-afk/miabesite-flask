@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -21,8 +21,9 @@ import {
 import { Search, MessageSquare, Send, User, Bot, MessageSquareText, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { useAuth } from "@/components/auth/AuthContext"; // Import useAuth
+import { useAuth } from "@/components/auth/AuthContext";
 import { useRouter } from "next/navigation";
+import { supabaseClient } from '@/lib/supabase/client'; // Import supabaseClient
 
 interface Conversation {
   id: string;
@@ -31,8 +32,8 @@ interface Conversation {
   last_activity: string;
   status: "En cours" | "Clôturé" | "Non-répondu";
   unread_messages: number;
-  instance_id: string; // Added instance_id
-  user_id: string; // Added user_id
+  instance_id: string;
+  user_id: string;
 }
 
 interface Message {
@@ -41,11 +42,11 @@ interface Message {
   sender: "client" | "ai";
   text: string;
   timestamp: string;
-  evolution_message_id: string;
+  evolution_message_id?: string; // Made optional as manual notes might not have it
 }
 
 export default function ChatHistoryPage() {
-  const { userId, loading: authLoading } = useAuth(); // Use AuthContext
+  const { userId, loading: authLoading } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("last_activity");
@@ -58,6 +59,11 @@ export default function ChatHistoryPage() {
   const [sendingNote, setSendingNote] = useState(false);
 
   const router = useRouter();
+  const messagesEndRef = useRef<HTMLDivElement>(null); // Ref for auto-scrolling
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const fetchConversations = useCallback(async () => {
     if (authLoading || !userId) {
@@ -67,7 +73,7 @@ export default function ChatHistoryPage() {
 
     setLoadingConversations(true);
     try {
-      const response = await fetch(`/api/chat-history/conversations`); // userId is now handled by API route
+      const response = await fetch(`/api/chat-history/conversations`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -109,9 +115,8 @@ export default function ChatHistoryPage() {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      // Update the local state to reflect 0 unread messages
-      setConversations(prev => 
-        prev.map(conv => 
+      setConversations(prev =>
+        prev.map(conv =>
           conv.id === conversationId ? { ...conv, unread_messages: 0 } : conv
         )
       );
@@ -133,10 +138,53 @@ export default function ChatHistoryPage() {
       if (selectedConversation.unread_messages > 0) {
         markConversationAsRead(selectedConversation.id);
       }
+
+      // Set up Supabase Realtime subscription for messages
+      const messagesChannel = supabaseClient
+        .channel(`conversation_${selectedConversation.id}_messages`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `conversation_id=eq.${selectedConversation.id}`,
+          },
+          (payload) => {
+            const newMessage = payload.new as Message;
+            setMessages((prevMessages) => {
+              // Prevent duplicates if the message was already added locally (e.g., manual note)
+              if (!prevMessages.some(msg => msg.id === newMessage.id)) {
+                return [...prevMessages, newMessage];
+              }
+              return prevMessages;
+            });
+            // Also update the conversation's last activity and unread count
+            setConversations(prev => prev.map(conv => {
+              if (conv.id === selectedConversation.id) {
+                return {
+                  ...conv,
+                  last_activity: newMessage.timestamp,
+                  unread_messages: newMessage.sender === 'client' ? conv.unread_messages + 1 : conv.unread_messages,
+                };
+              }
+              return conv;
+            }));
+          }
+        )
+        .subscribe();
+
+      return () => {
+        messagesChannel.unsubscribe();
+      };
     } else {
       setMessages([]);
     }
   }, [selectedConversation, fetchMessages, markConversationAsRead]);
+
+  useEffect(() => {
+    scrollToBottom(); // Scroll to bottom whenever messages change
+  }, [messages]);
 
   const filteredAndSortedConversations = conversations
     .filter((conv) => {
@@ -146,11 +194,9 @@ export default function ChatHistoryPage() {
       return matchesSearch && matchesStatus;
     })
     .sort((a, b) => {
-      // Sort by last_activity (most recent first)
       if (sortBy === "last_activity") {
         return new Date(b.last_activity).getTime() - new Date(a.last_activity).getTime();
       }
-      // Add other sorting logic if needed
       return 0;
     });
 
@@ -158,20 +204,35 @@ export default function ChatHistoryPage() {
     if (manualNote.trim() && selectedConversation) {
       setSendingNote(true);
       try {
-        // In a real app, you'd send this note to your backend to be stored
-        // For now, we'll simulate it and add it as a local message from 'ai'
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-        const newNoteMessage: Message = {
-          id: `note-${Date.now()}`,
-          conversation_id: selectedConversation.id,
-          sender: "ai", // Assuming manual notes are from the AI/agent
-          text: `[Note Manuelle]: ${manualNote}`,
-          timestamp: new Date().toISOString(),
-          evolution_message_id: `manual-note-${Date.now()}`
-        };
-        setMessages(prev => [...prev, newNoteMessage]);
+        // Insert manual note into Supabase
+        const { data, error } = await supabaseClient
+          .from('messages')
+          .insert({
+            conversation_id: selectedConversation.id,
+            sender: 'ai', // Assuming manual notes are from the AI/agent
+            text: `[Note Manuelle]: ${manualNote}`,
+            timestamp: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        // Update local state with the new message
+        setMessages(prev => [...prev, data as Message]);
         toast.success(`Note ajoutée à la conversation avec ${selectedConversation.contact_name}`);
         setManualNote("");
+
+        // Update conversation's last activity
+        setConversations(prev => prev.map(conv => {
+          if (conv.id === selectedConversation.id) {
+            return { ...conv, last_activity: data.timestamp };
+          }
+          return conv;
+        }));
+
       } catch (error) {
         console.error("Error adding note:", error);
         toast.error("Erreur lors de l'ajout de la note.");
@@ -181,17 +242,8 @@ export default function ChatHistoryPage() {
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-8">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">Chargement de l'utilisateur...</p>
-      </div>
-    );
-  }
-
-  if (!userId) {
-    router.push('/login'); // Redirect to login if not authenticated
+  if (authLoading || !userId) {
+    router.push('/login');
     return null;
   }
 
@@ -339,6 +391,7 @@ export default function ChatHistoryPage() {
                         </div>
                       </div>
                     ))}
+                    <div ref={messagesEndRef} /> {/* Scroll anchor */}
                   </div>
                 ) : (
                   <p className="text-center text-muted-foreground">Aucun message dans cette conversation.</p>

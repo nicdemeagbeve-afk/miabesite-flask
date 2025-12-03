@@ -8,10 +8,10 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ActivityChart } from "@/components/charts/activity-chart";
-import { CheckCircle, AlertTriangle, Loader2 } from "lucide-react"; // Import Loader2
+import { CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useAuth } from "@/components/auth/AuthContext"; // Import useAuth
+import { useAuth } from "@/components/auth/AuthContext";
 
 // Environment variables for API configuration
 const API_SERVER_URL = process.env.NEXT_PUBLIC_API_SERVER_URL;
@@ -20,16 +20,13 @@ const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
 type ConnectionState = "connected" | "disconnected" | "pending";
 
 export default function HomePage() {
-  const { userId, instanceId, loading: authLoading } = useAuth(); // Use AuthContext
+  const { userId, instanceId, loading: authLoading } = useAuth();
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
-  // NOTE: Ces statistiques sont maintenant des placeholders.
-  // Pour les rendre "réelles", vous devrez implémenter un backend
-  // qui collecte et agrège ces données (ex: via les webhooks Evolution API vers Supabase).
-  const [quotaUsed, setQuotaUsed] = useState(0); // Placeholder
-  const totalQuota = 50000; // Placeholder
-  const messagesProcessed = 0; // Placeholder
-  const responseRate = 0; // Placeholder
-  const avgResponseTime = 0; // Placeholder
+  const [quotaUsed, setQuotaUsed] = useState(0);
+  const [totalQuota, setTotalQuota] = useState(0);
+  const [messagesProcessed, setMessagesProcessed] = useState(0);
+  const [responseRate, setResponseRate] = useState(0); // Placeholder
+  const [avgResponseTime, setAvgResponseTime] = useState(0); // Placeholder
 
   const router = useRouter();
 
@@ -73,33 +70,56 @@ export default function HomePage() {
     }
   }, [instanceId, connectionState]);
 
+  const fetchUserStats = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const response = await fetch('/api/user-stats');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setMessagesProcessed(data.messagesProcessed);
+      setTotalQuota(data.totalQuota);
+      setQuotaUsed(data.quotaUsed);
+      setResponseRate(data.responseRate);
+      setAvgResponseTime(data.avgResponseTime);
+    } catch (error) {
+      console.error("Error fetching user stats:", error);
+      toast.error("Erreur lors du chargement des statistiques utilisateur.");
+    }
+  }, [userId]);
+
   useEffect(() => {
-    if (!authLoading) { // Only fetch if auth state is known
+    if (!authLoading) {
+      if (!userId) {
+        router.push('/login');
+        return;
+      }
       fetchConnectionState();
+      fetchUserStats();
+
       const connectionInterval = setInterval(() => {
         if (connectionState === "pending" || connectionState === "disconnected") {
           fetchConnectionState();
         }
       }, 10000); // Refresh connection state every 10 seconds
 
+      const statsInterval = setInterval(fetchUserStats, 30000); // Refresh stats every 30 seconds
+
       return () => {
         clearInterval(connectionInterval);
+        clearInterval(statsInterval);
       };
     }
-  }, [authLoading, fetchConnectionState, connectionState]);
+  }, [authLoading, userId, fetchConnectionState, fetchUserStats, connectionState, router]);
 
-  if (authLoading) {
+  if (authLoading || !userId) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="mt-4 text-muted-foreground">Chargement de l'utilisateur...</p>
       </div>
     );
-  }
-
-  if (!userId) {
-    router.push('/login'); // Redirect to login if not authenticated
-    return null;
   }
 
   return (
