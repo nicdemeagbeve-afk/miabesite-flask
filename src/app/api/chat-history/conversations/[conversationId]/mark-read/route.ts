@@ -4,6 +4,8 @@ import { createServerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import type { CookieOptions } from '@supabase/auth-helpers-nextjs';
 
+export const dynamic = 'force-dynamic'; // Force dynamic rendering for this API route
+
 export async function PUT(request: Request, { params }: { params: { conversationId: string } }) {
   try {
     const { conversationId } = params;
