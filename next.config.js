@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export', // Enable static HTML export for Capacitor
   reactStrictMode: true, // Recommended for production
   webpack: (config) => {
     if (process.env.NODE_ENV === "development") {
