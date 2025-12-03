@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'; // Corrected import path
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs/server';
 import { cookies } from 'next/headers';
 
 export async function PUT(request: Request, { params }: { params: { conversationId: string } }) {
