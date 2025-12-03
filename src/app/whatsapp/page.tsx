@@ -107,7 +107,7 @@ export default function WhatsappPage() {
     setLinkingCode(null); // Clear previous linking code
 
     try {
-      // Step 1: Create the instance with minimal required parameters
+      // Step 1: Create the instance with minimal required parameters, including webhook for initial setup
       const createResponse = await fetch(`${API_SERVER_URL}/instance/create`, {
         method: 'POST',
         headers: {
@@ -119,7 +119,9 @@ export default function WhatsappPage() {
           token: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15), // Simple random token
           qrcode: true,
           integration: "WHATSAPP-BAILEYS",
-          // Removed webhook, webhook_by_events, and events from here
+          webhook: EVOLUTION_WEBHOOK_URL, // Include webhook URL here
+          webhookByEvents: false, // Set to false initially
+          events: [], // Empty events array for initial creation
         }),
       });
 
@@ -136,7 +138,7 @@ export default function WhatsappPage() {
       setConnectionState("pending");
       setCurrentInstanceName(instanceId);
 
-      // Step 2: Set up the webhook for the newly created instance
+      // Step 2: Set up the webhook for the newly created instance with event-driven configuration
       const setWebhookResponse = await fetch(`${API_SERVER_URL}/webhook/set/${instanceId}`, {
         method: 'POST',
         headers: {

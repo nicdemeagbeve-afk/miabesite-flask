@@ -25,7 +25,11 @@ const navItems: NavItem[] = [
   { href: "/admin", label: "Admin", icon: Shield, adminOnly: true }, // Mark as adminOnly
 ];
 
-export function MainSidebar() {
+interface MainSidebarProps {
+  onLinkClick?: () => void; // Optional prop for mobile sidebar to close itself
+}
+
+export function MainSidebar({ onLinkClick }: MainSidebarProps) {
   const pathname = usePathname();
   const { userId, role, signOut, loading: authLoading } = useAuth(); // Use AuthContext and get role
   const router = useRouter();
@@ -33,6 +37,7 @@ export function MainSidebar() {
   const handleSignOut = async () => {
     await signOut();
     router.push('/login'); // Redirect to login page after sign out
+    onLinkClick?.(); // Close sidebar on mobile after sign out
   };
 
   // Don't render sidebar content until auth state is known
@@ -41,7 +46,7 @@ export function MainSidebar() {
   }
 
   return (
-    <Sidebar className="w-64 p-4 fixed h-full flex flex-col">
+    <Sidebar className="w-64 p-4 fixed h-full flex flex-col hidden md:flex"> {/* Hide on mobile by default */}
       <div className="mb-8 text-2xl font-bold text-primary">Synapse AI</div>
       <nav className="flex flex-col space-y-2 flex-1"> {/* flex-1 to push logout to bottom */}
         {navItems.map((item) => {
@@ -62,6 +67,7 @@ export function MainSidebar() {
                   ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
                   : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               )}
+              onClick={onLinkClick} // Close sidebar on link click for mobile
             >
               <Icon className="h-5 w-5" />
               {item.label}

@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
-import { GeistSans, GeistMono } from 'geist/font'; // Corrected import path for Geist fonts
+import { GeistSans, GeistMono } from 'geist/font';
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import { MainSidebar } from "@/components/layout/main-sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/components/auth/AuthContext";
+import { usePathname } from "next/navigation"; // Import usePathname
+import { useIsMobile } from "@/hooks/use-mobile"; // Import useIsMobile
+import { MobileSidebar } from "@/components/layout/mobile-sidebar"; // Import MobileSidebar
 
 const geistSans = GeistSans;
 const geistMono = GeistMono;
@@ -32,6 +35,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = usePathname();
+  const isMobile = useIsMobile();
+
+  // Define paths where the sidebar should NOT be displayed
+  const noSidebarPaths = ['/login', '/forgot-password', '/update-password', '/confirm-email'];
+  const showSidebar = !noSidebarPaths.includes(pathname);
+
   return (
     <html lang="en">
       <body
@@ -39,8 +49,8 @@ export default function RootLayout({
       >
         <AuthProvider>
           <div className="flex min-h-screen">
-            <MainSidebar />
-            <div className="flex-1 ml-64">
+            {showSidebar && (isMobile ? <MobileSidebar /> : <MainSidebar />)}
+            <div className={`flex-1 ${showSidebar ? (isMobile ? 'ml-0' : 'ml-64') : 'ml-0'}`}>
               {children}
             </div>
           </div>
