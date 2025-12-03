@@ -121,13 +121,7 @@ export default function WhatsappPage() {
           webhook: EVOLUTION_WEBHOOK_URL, // Use the new webhook URL
           webhook_by_events: true,
           events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED", "INSTANCE_STATUS"], // Add more events
-          proxy: {
-            host: "proxy.example.com", // Placeholder proxy host
-            port: "8080", // Placeholder proxy port
-            protocol: "http", // Placeholder proxy protocol
-            username: "user", // Placeholder proxy username
-            password: "pass" // Placeholder proxy password
-          }
+          // Removed proxy object as it might be causing the 'Cannot read properties of undefined (reading 'length')' error
         }),
       });
 
