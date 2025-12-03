@@ -2,13 +2,29 @@ import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { createServerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import type { CookieOptions } from '@supabase/auth-helpers-nextjs';
 
 export async function GET(request: Request) {
   try {
+    const cookieStore = cookies();
+    
+    // Créer un objet qui correspond à l'interface CookieMethodsServer
+    const cookieMethods = {
+      get: (name: string) => cookieStore.get(name)?.value,
+      set: (name: string, value: string, options: CookieOptions) => {
+        cookieStore.set(name, value, options);
+      },
+      delete: (name: string) => {
+        cookieStore.delete(name);
+      },
+    };
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: () => cookies() } // Passer la fonction cookies directement
+      {
+        cookies: cookieMethods,
+      }
     );
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
@@ -22,7 +38,7 @@ export async function GET(request: Request) {
       .from('conversations')
       .select('*')
       .eq('user_id', userId)
-      .order('last_activity', { ascending: false }); // Order by most recent activity
+      .order('last_activity', { ascending: false });
 
     if (error) {
       console.error('Error fetching conversations:', error);
