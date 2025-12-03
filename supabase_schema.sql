@@ -1,3 +1,30 @@
+-- Drop existing triggers if they exist
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
+DROP TRIGGER IF EXISTS update_ai_prompts_updated_at ON public.ai_prompts;
+DROP TRIGGER IF EXISTS update_conversations_updated_at ON public.conversations;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view their own profile." ON public.profiles;
+DROP POLICY IF EXISTS "Users can update their own profile." ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert their own profile." ON public.profiles;
+
+DROP POLICY IF EXISTS "Users can view their own AI prompts." ON public.ai_prompts;
+DROP POLICY IF EXISTS "Users can update their own AI prompts." ON public.ai_prompts;
+DROP POLICY IF EXISTS "Users can insert their own AI prompts." ON public.ai_prompts;
+
+DROP POLICY IF EXISTS "Users can view their own conversations." ON public.conversations;
+DROP POLICY IF EXISTS "Users can update their own conversations." ON public.conversations;
+DROP POLICY IF EXISTS "Users can insert their own conversations." ON public.conversations;
+
+DROP POLICY IF EXISTS "Users can view messages in their conversations." ON public.messages;
+DROP POLICY IF EXISTS "Users can insert messages into their conversations." ON public.messages;
+
+-- Drop tables if they exist (order matters due to foreign keys)
+DROP TABLE IF EXISTS public.messages CASCADE;
+DROP TABLE IF EXISTS public.conversations CASCADE;
+DROP TABLE IF EXISTS public.ai_prompts CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+
 -- Create the profiles table
 CREATE TABLE public.profiles (
   id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
