@@ -179,7 +179,7 @@ export default function LoginPage() {
               </form>
             </Form>
           ) : (
-            <Form {...signupForm}>
+            <Form {...signupForm} key="signup-form"> {/* Added key for better form management */}
               <form onSubmit={signupForm.handleSubmit(handleSignUp)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -214,13 +214,14 @@ export default function LoginPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel htmlFor="email">Email</FormLabel>
+                      <FormLabel htmlFor="signupEmail">Email</FormLabel> {/* Unique ID for signup email */}
                       <FormControl>
                         <Input
-                          id="email"
+                          id="signupEmail" // Explicitly set unique ID
                           type="email"
                           placeholder="votre@email.com"
-                          {...field}
+                          value={field.value} // Explicitly controlled value
+                          onChange={field.onChange} // Explicitly controlled onChange
                           required
                         />
                       </FormControl>
@@ -233,11 +234,11 @@ export default function LoginPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel htmlFor="password">Mot de passe</FormLabel>
+                      <FormLabel htmlFor="signupPassword">Mot de passe</FormLabel> {/* Unique ID */}
                       <FormControl>
                         <div className="relative">
                           <Input
-                            id="password"
+                            id="signupPassword" // Unique ID
                             type={showPassword ? "text" : "password"}
                             placeholder="********"
                             {...field}
@@ -267,11 +268,11 @@ export default function LoginPage() {
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel htmlFor="confirmPassword">Confirmer le mot de passe</FormLabel>
+                      <FormLabel htmlFor="confirmSignupPassword">Confirmer le mot de passe</FormLabel> {/* Unique ID */}
                       <FormControl>
                         <div className="relative">
                           <Input
-                            id="confirmPassword"
+                            id="confirmSignupPassword" // Unique ID
                             type={showConfirmPassword ? "text" : "password"}
                             placeholder="********"
                             {...field}
