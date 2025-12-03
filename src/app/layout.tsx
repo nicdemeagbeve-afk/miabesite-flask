@@ -1,25 +1,23 @@
 import type { Metadata } from "next";
 import { GeistSans, GeistMono } from 'geist/font'; // Corrected import path for Geist fonts
-import { Inter, Poppins } from "next/font/google"; // Import new fonts
+import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import { MainSidebar } from "@/components/layout/main-sidebar";
 import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider } from "@/components/auth/AuthContext"; // Import AuthProvider
+import { AuthProvider } from "@/components/auth/AuthContext";
 
-const geistSans = GeistSans; // Use directly from geist/font
-const geistMono = GeistMono; // Use directly from geist/font
+const geistSans = GeistSans;
+const geistMono = GeistMono;
 
-// Configure Inter for body text
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
   display: "swap",
 });
 
-// Configure Poppins for headings
 const poppins = Poppins({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"], // Specify weights you need
+  weight: ["400", "500", "600", "700"],
   variable: "--font-poppins",
   display: "swap",
 });
@@ -39,7 +37,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${poppins.variable} antialiased`}
       >
-        <AuthProvider> {/* Wrap the entire app with AuthProvider */}
+        <AuthProvider>
           <div className="flex min-h-screen">
             <MainSidebar />
             <div className="flex-1 ml-64">

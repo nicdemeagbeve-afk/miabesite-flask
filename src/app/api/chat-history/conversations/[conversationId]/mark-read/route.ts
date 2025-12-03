@@ -14,7 +14,7 @@ export async function PUT(request: Request, { params }: { params: { conversation
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies }
+      { cookies: () => cookies() } // Passer la fonction cookies directement
     );
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
