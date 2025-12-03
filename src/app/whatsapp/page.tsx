@@ -107,37 +107,63 @@ export default function WhatsappPage() {
     setLinkingCode(null); // Clear previous linking code
 
     try {
-      const response = await fetch(`${API_SERVER_URL}/instance/create`, {
+      // Step 1: Create the instance with minimal required parameters
+      const createResponse = await fetch(`${API_SERVER_URL}/instance/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'apikey': API_KEY,
         },
         body: JSON.stringify({
-          instanceName: instanceId, // Use dynamic instanceId
+          instanceName: instanceId, // Use dynamic instanceId (userId)
           token: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15), // Simple random token
           qrcode: true,
           integration: "WHATSAPP-BAILEYS",
-          webhook: EVOLUTION_WEBHOOK_URL, // Use the new webhook URL
-          webhook_by_events: true,
-          events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED", "INSTANCE_STATUS"], // Add more events
-          // Removed proxy object as it might be causing the 'Cannot read properties of undefined (reading 'length')' error
+          // Removed webhook, webhook_by_events, and events from here
         }),
       });
 
-      if (!response.ok) {
-        const contentType = response.headers.get("content-type");
+      if (!createResponse.ok) {
+        const contentType = createResponse.headers.get("content-type");
         if (contentType && contentType.includes("text/html")) {
-          throw new Error(`API Evolution a renvoyé une page HTML (code: ${response.status}). Vérifiez l'URL de l'API et la clé.`);
+          throw new Error(`API Evolution a renvoyé une page HTML (code: ${createResponse.status}). Vérifiez l'URL de l'API et la clé.`);
         }
-        const errorData = await response.json(); // Try to parse JSON error
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || JSON.stringify(errorData)}`);
+        const errorData = await createResponse.json(); // Try to parse JSON error
+        throw new Error(`HTTP error! status: ${createResponse.status}, message: ${errorData.message || JSON.stringify(errorData)}`);
       }
 
       toast.success("Instance créée avec succès !");
       setConnectionState("pending");
       setCurrentInstanceName(instanceId);
-      fetchQrCode(); // Immediately fetch QR code after creation
+
+      // Step 2: Set up the webhook for the newly created instance
+      const setWebhookResponse = await fetch(`${API_SERVER_URL}/webhook/set/${instanceId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': API_KEY,
+        },
+        body: JSON.stringify({
+          webhookUrl: EVOLUTION_WEBHOOK_URL,
+          webhookByEvents: true,
+          events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED", "INSTANCE_STATUS"],
+        }),
+      });
+
+      if (!setWebhookResponse.ok) {
+        const contentType = setWebhookResponse.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) {
+          console.warn(`API Evolution a renvoyé une page HTML lors de la configuration du webhook (code: ${setWebhookResponse.status}).`);
+        }
+        const errorData = await setWebhookResponse.json();
+        console.error('Erreur lors de la configuration du webhook:', setWebhookResponse.status, errorData);
+        toast.error(`Instance créée, mais erreur lors de la configuration du webhook: ${errorData.message || JSON.stringify(errorData)}`);
+        // Continue even if webhook setup fails, as instance is created
+      } else {
+        toast.success("Webhook configuré avec succès pour l'instance !");
+      }
+
+      fetchQrCode(); // Immediately fetch QR code after creation and webhook setup
     } catch (error: any) {
       console.error("Error creating instance:", error);
       toast.error(`Erreur lors de la création de l'instance: ${error.message || "Vérifiez la console pour plus de détails."}`);

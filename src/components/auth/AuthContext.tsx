@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine for new users
-        console.error('Error fetching user profile:', profileError);
+        console.error('Error fetching user profile:', profileError); // Log the full error object
         setRole(null);
       } else {
         setRole(profile?.role || 'user'); // Default to 'user' if no role found
