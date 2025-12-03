@@ -1,6 +1,5 @@
 "use client";
 
-import type { Metadata } from "next";
 import { GeistSans, GeistMono } from 'geist/font';
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
@@ -27,10 +26,11 @@ const poppins = Poppins({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Synapse AI Dashboard",
-  description: "User dashboard for Synapse AI chatbot management",
-};
+// Removed metadata export as it's not allowed in a Client Component
+// export const metadata: Metadata = {
+//   title: "Synapse AI Dashboard",
+//   description: "User dashboard for Synapse AI chatbot management",
+// };
 
 export default function RootLayout({
   children,
