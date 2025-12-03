@@ -1,20 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { GeistSans, GeistMono } from 'geist/font'; // Corrected import path for Geist fonts
 import { Inter, Poppins } from "next/font/google"; // Import new fonts
 import "./globals.css";
 import { MainSidebar } from "@/components/layout/main-sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/components/auth/AuthContext"; // Import AuthProvider
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const geistSans = GeistSans; // Use directly from geist/font
+const geistMono = GeistMono; // Use directly from geist/font
 
 // Configure Inter for body text
 const inter = Inter({

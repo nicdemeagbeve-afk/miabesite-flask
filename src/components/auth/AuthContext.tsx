@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     return () => {
-      authListener?.unsubscribe();
+      authListener?.subscription?.unsubscribe(); // Corrected: unsubscribe is on the subscription object
     };
   }, [fetchUserAndInstance]);
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
-import { createServerClient } from '@supabase/auth-helpers-nextjs/server';
+import { createServerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
 export async function GET(request: Request, { params }: { params: { conversationId: string } }) {
@@ -11,7 +11,11 @@ export async function GET(request: Request, { params }: { params: { conversation
       return NextResponse.json({ error: 'Conversation ID is required' }, { status: 400 });
     }
 
-    const supabase = createServerClient({ cookies });
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies }
+    );
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
