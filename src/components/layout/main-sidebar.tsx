@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Smartphone, Brain, MessageSquareText, CreditCard, Shield, LogOut } from "lucide-react";
+import { LayoutDashboard, Smartphone, Brain, MessageSquareText, CreditCard, Shield, LogOut, Settings } from "lucide-react"; // Added Settings icon
 import { cn } from "@/lib/utils";
 import { Sidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ const navItems: NavItem[] = [
   { href: "/prompt-ia", label: "Prompt & IA", icon: Brain },
   { href: "/chat-history", label: "Historique des Chats", icon: MessageSquareText },
   { href: "/billing", label: "Facturation", icon: CreditCard },
+  { href: "/settings/profile", label: "Paramètres du Profil", icon: Settings }, // New item for profile settings
   { href: "/admin", label: "Admin", icon: Shield, adminOnly: true }, // Mark as adminOnly
 ];
 
@@ -31,7 +32,7 @@ interface MainSidebarProps {
 
 export function MainSidebar({ onLinkClick }: MainSidebarProps) {
   const pathname = usePathname();
-  const { userId, role, signOut, loading: authLoading } = useAuth(); // Use AuthContext and get role
+  const { userId, profile, signOut, loading: authLoading } = useAuth(); // Changed role to profile
   const router = useRouter();
 
   const handleSignOut = async () => {
@@ -51,7 +52,7 @@ export function MainSidebar({ onLinkClick }: MainSidebarProps) {
       <nav className="flex flex-col space-y-2 flex-1"> {/* flex-1 to push logout to bottom */}
         {navItems.map((item) => {
           // Only render admin-only items if the user is an admin
-          if (item.adminOnly && role !== 'admin') {
+          if (item.adminOnly && profile?.role !== 'admin') {
             return null;
           }
 

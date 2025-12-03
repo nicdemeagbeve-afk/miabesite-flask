@@ -41,7 +41,7 @@ export default function ForgotPasswordPage() {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Un lien de réinitialisation de mot de passe a été envoyé à votre email.");
+      toast.success("Un lien de réinitialisation de mot de passe a été envoyé à votre email. Veuillez vérifier votre boîte de réception.");
       form.reset();
     }
     setLoading(false);
@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleResetPassword)} className="space-y-4">
               <p className="text-sm text-muted-foreground text-center mb-4">
-                Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.
+                Entrez votre adresse email ci-dessous et nous vous enverrons un lien sécurisé pour réinitialiser votre mot de passe.
               </p>
               <FormField
                 control={form.control}

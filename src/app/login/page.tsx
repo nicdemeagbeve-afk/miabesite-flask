@@ -311,7 +311,7 @@ export default function LoginPage() {
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel>
-                          J'accepte les <Link href="#" className="text-primary hover:underline">termes et conditions</Link>
+                          J'accepte les <Link href="/legal/terms" className="text-primary hover:underline">termes et conditions</Link>
                         </FormLabel>
                       </div>
                       <FormMessage />

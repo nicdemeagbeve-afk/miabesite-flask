@@ -30,6 +30,9 @@ CREATE TABLE public.profiles (
   id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   first_name text NULL,
   last_name text NULL,
+  phone_number text NULL,
+  age integer NULL,
+  country text NULL,
   role text NULL DEFAULT 'user'::text, -- 'user' or 'admin'
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),

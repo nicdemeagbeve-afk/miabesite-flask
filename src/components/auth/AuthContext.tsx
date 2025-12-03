@@ -5,11 +5,21 @@ import { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { supabaseAuthClient } from '@/lib/supabase/auth-helpers';
 import { toast } from 'sonner';
 
+interface UserProfile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone_number: string | null;
+  age: number | null;
+  country: string | null;
+  role: string | null;
+}
+
 interface AuthContextType {
   user: User | null;
   userId: string | null;
   instanceId: string | null;
-  role: string | null; // Added role
+  profile: UserProfile | null; // Added full profile object
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -20,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [instanceId, setInstanceId] = useState<string | null>(null);
-  const [role, setRole] = useState<string | null>(null); // State for role
+  const [profile, setProfile] = useState<UserProfile | null>(null); // State for full profile
   const [loading, setLoading] = useState(true);
 
   const fetchUserAndInstance = useCallback(async () => {
@@ -32,22 +42,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (fetchedUser) {
       setInstanceId(fetchedUser.id);
 
-      // Fetch user role from profiles table
-      const { data: profile, error: profileError } = await supabaseAuthClient
+      // Fetch user profile from profiles table
+      const { data: profileData, error: profileError } = await supabaseAuthClient
         .from('profiles')
-        .select('role')
+        .select('id, first_name, last_name, phone_number, age, country, role')
         .eq('id', fetchedUser.id)
         .single();
 
       if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no rows found, which is fine for new users
         console.error('Error fetching user profile:', profileError); // Log the full error object
-        setRole(null);
+        setProfile(null);
       } else {
-        setRole(profile?.role || 'user'); // Default to 'user' if no role found
+        setProfile({
+          id: fetchedUser.id,
+          first_name: profileData?.first_name || null,
+          last_name: profileData?.last_name || null,
+          phone_number: profileData?.phone_number || null,
+          age: profileData?.age || null,
+          country: profileData?.country || null,
+          role: profileData?.role || 'user', // Default to 'user' if no role found
+        });
       }
     } else {
       setInstanceId(null);
-      setRole(null);
+      setProfile(null);
     }
     setLoading(false);
   }, []);
@@ -78,12 +96,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setUserId(null);
       setInstanceId(null);
-      setRole(null);
+      setProfile(null);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, userId, instanceId, role, loading, signOut }}>
+    <AuthContext.Provider value={{ user, userId, instanceId, profile, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation"; // Import usePathname
 import { useIsMobile } from "@/hooks/use-mobile"; // Import useIsMobile
 import { MobileSidebar } from "@/components/layout/mobile-sidebar"; // Import MobileSidebar
 import { useEffect, useState } from "react"; // Import useEffect and useState
+import Link from 'next/link'; // Import Link for footer
 
 const geistSans = GeistSans;
 const geistMono = GeistMono;
@@ -75,8 +76,23 @@ export default function RootLayout({
         <AuthProvider>
           <div className="flex min-h-screen">
             {sidebarComponent}
-            <div className={`flex-1 ${mainContentClass}`}>
-              {children}
+            <div className={`flex-1 flex flex-col ${mainContentClass}`}>
+              <main className="flex-1">
+                {children}
+              </main>
+              {showSidebar && (
+                <footer className="p-4 border-t bg-background text-center text-sm text-muted-foreground">
+                  <p>&copy; {new Date().getFullYear()} Synapse AI. Tous droits réservés.</p>
+                  <div className="mt-2 space-x-4">
+                    <Link href="/legal/terms" className="hover:underline">
+                      Conditions Générales d'Utilisation
+                    </Link>
+                    <Link href="/legal/privacy" className="hover:underline">
+                      Politique de Confidentialité
+                    </Link>
+                  </div>
+                </footer>
+              )}
             </div>
           </div>
           <Toaster />

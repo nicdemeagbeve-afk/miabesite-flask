@@ -12,7 +12,7 @@ import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 
 export default function AdminDashboardPage() {
-  const { userId, role, loading: authLoading } = useAuth();
+  const { userId, profile, loading: authLoading } = useAuth(); // Changed role to profile
   const router = useRouter();
 
   // Simulated KPI data
@@ -23,12 +23,12 @@ export default function AdminDashboardPage() {
   const bannedIPs = 0;
 
   useEffect(() => {
-    if (!authLoading && (!userId || role !== 'admin')) {
+    if (!authLoading && (!userId || profile?.role !== 'admin')) { // Access role via profile?.role
       router.push('/'); // Redirect non-admin users to home
     }
-  }, [authLoading, userId, role, router]);
+  }, [authLoading, userId, profile?.role, router]); // Dependency on profile?.role
 
-  if (authLoading || !userId || role !== 'admin') {
+  if (authLoading || !userId || profile?.role !== 'admin') { // Access role via profile?.role
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

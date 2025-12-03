@@ -61,7 +61,7 @@ interface Instance {
 }
 
 export default function AdminInstancesPage() {
-  const { userId, role, loading: authLoading } = useAuth();
+  const { userId, profile, loading: authLoading } = useAuth(); // Changed role to profile
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,10 +72,10 @@ export default function AdminInstancesPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!authLoading && (!userId || role !== 'admin')) {
+    if (!authLoading && (!userId || profile?.role !== 'admin')) { // Access role via profile?.role
       router.push('/'); // Redirect non-admin users to home
     }
-  }, [authLoading, userId, role, router]);
+  }, [authLoading, userId, profile?.role, router]); // Dependency on profile?.role
 
   const fetchInstances = async () => {
     if (!API_SERVER_URL || !API_KEY) {
@@ -127,10 +127,10 @@ export default function AdminInstancesPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && userId && role === 'admin') {
+    if (!authLoading && userId && profile?.role === 'admin') { // Access role via profile?.role
       fetchInstances();
     }
-  }, [authLoading, userId, role]); // Exécute une seule fois au montage du composant
+  }, [authLoading, userId, profile?.role]); // Exécute une seule fois au montage du composant
 
   const handleViewLogs = async (instanceId: string) => {
     setActionLoading(instanceId + "-logs");
@@ -229,7 +229,7 @@ export default function AdminInstancesPage() {
     return matchesSearch && matchesApiStatus && matchesWebhookPing;
   });
 
-  if (authLoading || !userId || role !== 'admin') {
+  if (authLoading || !userId || profile?.role !== 'admin') { // Access role via profile?.role
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -391,7 +391,7 @@ export default function AdminInstancesPage() {
                       <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                         Aucune instance trouvée.
                       </TableCell>
-                    </TableRow>
+                      </TableRow>
                   )}
                 </TableBody>
               </Table>
