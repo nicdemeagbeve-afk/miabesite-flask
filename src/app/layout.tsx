@@ -1,3 +1,5 @@
+"use client";
+
 import type { Metadata } from "next";
 import { GeistSans, GeistMono } from 'geist/font';
 import { Inter, Poppins } from "next/font/google";
