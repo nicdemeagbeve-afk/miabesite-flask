@@ -57,9 +57,16 @@ export default function WhatsappPage() {
           'apikey': API_KEY,
         },
       });
+      
       if (!response.ok) {
+        // Check if the response is HTML (e.g., a login page)
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) {
+          throw new Error(`API Evolution a renvoyé une page HTML (code: ${response.status}). Vérifiez l'URL de l'API et la clé.`);
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
       const data = await response.json();
       const state = data.instance?.state;
       if (state === "open") {
@@ -74,13 +81,13 @@ export default function WhatsappPage() {
         setCurrentInstanceName(null);
         setLastConnectionTime(null);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching connection state:", error);
       setConnectionState("disconnected");
       setCurrentInstanceName(null);
       setLastConnectionTime(null);
       if (connectionState === "connected" || connectionState === "pending") {
-        toast.error("Erreur lors de la récupération du statut de connexion. Vérifiez la console pour plus de détails.");
+        toast.error(`Erreur lors de la récupération du statut de connexion: ${error.message || "Vérifiez la console pour plus de détails."}`);
       }
     }
   }, [instanceId, connectionState]);
@@ -125,16 +132,21 @@ export default function WhatsappPage() {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) {
+          throw new Error(`API Evolution a renvoyé une page HTML (code: ${response.status}). Vérifiez l'URL de l'API et la clé.`);
+        }
+        const errorData = await response.json(); // Try to parse JSON error
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || JSON.stringify(errorData)}`);
       }
 
       toast.success("Instance créée avec succès !");
       setConnectionState("pending");
       setCurrentInstanceName(instanceId);
       fetchQrCode(); // Immediately fetch QR code after creation
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating instance:", error);
-      toast.error("Erreur lors de la création de l'instance.");
+      toast.error(`Erreur lors de la création de l'instance: ${error.message || "Vérifiez la console pour plus de détails."}`);
     } finally {
       setIsCreatingInstance(false);
     }
@@ -158,7 +170,12 @@ export default function WhatsappPage() {
         },
       });
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) {
+          throw new Error(`API Evolution a renvoyé une page HTML (code: ${response.status}). Vérifiez l'URL de l'API et la clé.`);
+        }
+        const errorData = await response.json();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || JSON.stringify(errorData)}`);
       }
       const data = await response.json();
       if (data.base64) {
@@ -172,9 +189,9 @@ export default function WhatsappPage() {
       } else {
         toast.info("Aucun QR Code ou code de liaison reçu.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching QR Code:", error);
-      toast.error("Erreur lors de la récupération du QR Code.");
+      toast.error(`Erreur lors de la récupération du QR Code: ${error.message || "Vérifiez la console pour plus de détails."}`);
     } finally {
       setIsFetchingQr(false);
     }
@@ -199,7 +216,12 @@ export default function WhatsappPage() {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) {
+          throw new Error(`API Evolution a renvoyé une page HTML (code: ${response.status}). Vérifiez l'URL de l'API et la clé.`);
+        }
+        const errorData = await response.json();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || JSON.stringify(errorData)}`);
       }
 
       setConnectionState("disconnected");
@@ -208,9 +230,9 @@ export default function WhatsappPage() {
       setCurrentInstanceName(null);
       setLastConnectionTime(null);
       toast.success("Instance déconnectée temporairement.");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error disconnecting instance:", error);
-      toast.error("Erreur lors de la déconnexion de l'instance.");
+      toast.error(`Erreur lors de la déconnexion de l'instance: ${error.message || "Vérifiez la console pour plus de détails."}`);
     }
   };
 
@@ -233,7 +255,12 @@ export default function WhatsappPage() {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) {
+          throw new Error(`API Evolution a renvoyé une page HTML (code: ${response.status}). Vérifiez l'URL de l'API et la clé.`);
+        }
+        const errorData = await response.json();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || JSON.stringify(errorData)}`);
       }
 
       setConnectionState("disconnected");
@@ -242,9 +269,9 @@ export default function WhatsappPage() {
       setCurrentInstanceName(null);
       setLastConnectionTime(null);
       toast.success("Instance supprimée définitivement.");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting instance:", error);
-      toast.error("Erreur lors de la suppression de l'instance.");
+      toast.error(`Erreur lors de la suppression de l'instance: ${error.message || "Vérifiez la console pour plus de détails."}`);
     }
   };
 

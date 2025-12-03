@@ -94,7 +94,12 @@ export default function AdminInstancesPage() {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) {
+          throw new Error(`API Evolution a renvoyé une page HTML (code: ${response.status}). Vérifiez l'URL de l'API et la clé.`);
+        }
+        const errorData = await response.json();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || JSON.stringify(errorData)}`);
       }
 
       const data: EvolutionAPIInstanceResponse[] = await response.json();
@@ -112,9 +117,9 @@ export default function AdminInstancesPage() {
       }));
       setInstances(mappedInstances);
       toast.success("Instances chargées avec succès.");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching instances:", error);
-      toast.error("Erreur lors du chargement des instances.");
+      toast.error(`Erreur lors du chargement des instances: ${error.message || "Vérifiez la console pour plus de détails."}`);
       setInstances([]); // Efface les instances en cas d'erreur
     } finally {
       setLoading(false);
@@ -135,8 +140,8 @@ export default function AdminInstancesPage() {
       // les logs pour une instance spécifique. L'API Evolution n'expose pas d'endpoint de logs.
       toast.info(`Affichage des logs pour l'instance ${instanceId}. (Fonctionnalité à implémenter, nécessite un endpoint de logs)`);
       // Dans une vraie application, cela ouvrirait une modale ou naviguerait vers un visualiseur de logs
-    } catch (error) {
-      toast.error(`Erreur lors de la récupération des logs de ${instanceId}.`);
+    } catch (error: any) {
+      toast.error(`Erreur lors de la récupération des logs de ${instanceId}: ${error.message || "Vérifiez la console pour plus de détails."}`);
     } finally {
       setActionLoading(null);
     }
@@ -158,7 +163,12 @@ export default function AdminInstancesPage() {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) {
+          throw new Error(`API Evolution a renvoyé une page HTML (code: ${response.status}). Vérifiez l'URL de l'API et la clé.`);
+        }
+        const errorData = await response.json();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || JSON.stringify(errorData)}`);
       }
       
       // Simule un court délai pour que l'instance revienne en ligne
@@ -170,9 +180,9 @@ export default function AdminInstancesPage() {
         )
       );
       toast.success(`Instance ${instanceId} forcée à se reconnecter avec succès.`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error forcing reconnect:", error);
-      toast.error(`Erreur lors de la reconnexion forcée de l'instance ${instanceId}.`);
+      toast.error(`Erreur lors de la reconnexion forcée de l'instance ${instanceId}: ${error.message || "Vérifiez la console pour plus de détails."}`);
     } finally {
       setActionLoading(null);
     }
@@ -198,9 +208,9 @@ export default function AdminInstancesPage() {
         )
       );
       toast.success(`Proxy de l'instance ${instanceId} modifié en ${newProxy}.`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error changing proxy:", error);
-      toast.error(`Erreur lors de la modification du proxy de l'instance ${instanceId}.`);
+      toast.error(`Erreur lors de la modification du proxy de l'instance ${instanceId}: ${error.message || "Vérifiez la console pour plus de détails."}`);
     } finally {
       setActionLoading(null);
     }

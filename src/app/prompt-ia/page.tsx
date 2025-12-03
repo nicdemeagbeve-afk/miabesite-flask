@@ -75,7 +75,12 @@ export default function PromptIaPage() {
         });
 
         if (!evolutionResponse.ok) {
-          throw new Error(`HTTP error! status: ${evolutionResponse.status}`);
+          const contentType = evolutionResponse.headers.get("content-type");
+          if (contentType && contentType.includes("text/html")) {
+            throw new Error(`API Evolution a renvoyé une page HTML (code: ${evolutionResponse.status}). Vérifiez l'URL de l'API et la clé.`);
+          }
+          const errorData = await evolutionResponse.json();
+          throw new Error(`HTTP error! status: ${evolutionResponse.status}, message: ${errorData.message || JSON.stringify(errorData)}`);
         }
         const fetchedEvolutionSettings = await evolutionResponse.json();
 
@@ -100,9 +105,9 @@ export default function PromptIaPage() {
           rejectCallMessage: fetchedEvolutionSettings.reject_call ? (fetchedEvolutionSettings.msg_call || "Désolé, je ne peux pas prendre d'appels pour le moment. Veuillez envoyer un message.") : "Désolé, je ne peux pas prendre d'appels pour le moment. Veuillez envoyer un message.",
         });
         toast.success("Paramètres de l'IA chargés.");
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching AI settings:", error);
-        toast.error("Erreur lors du chargement des paramètres de l'IA.");
+        toast.error(`Erreur lors du chargement des paramètres de l'IA: ${error.message || "Vérifiez la console pour plus de détails."}`);
       } finally {
         setIsLoading(false);
       }
@@ -143,7 +148,12 @@ export default function PromptIaPage() {
       });
 
       if (!evolutionResponse.ok) {
-        throw new Error(`HTTP error! status: ${evolutionResponse.status}`);
+        const contentType = evolutionResponse.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) {
+          throw new Error(`API Evolution a renvoyé une page HTML (code: ${evolutionResponse.status}). Vérifiez l'URL de l'API et la clé.`);
+        }
+        const errorData = await evolutionResponse.json();
+        throw new Error(`HTTP error! status: ${evolutionResponse.status}, message: ${errorData.message || JSON.stringify(errorData)}`);
       }
 
       // Save Main Prompt to Supabase
@@ -165,9 +175,9 @@ export default function PromptIaPage() {
 
       console.log("Settings saved:", values);
       toast.success("Paramètres de l'IA sauvegardés avec succès !");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving AI settings:", error);
-      toast.error("Erreur lors de la sauvegarde des paramètres de l'IA.");
+      toast.error(`Erreur lors de la sauvegarde des paramètres de l'IA: ${error.message || "Vérifiez la console pour plus de détails."}`);
     } finally {
       setIsSaving(false);
     }
