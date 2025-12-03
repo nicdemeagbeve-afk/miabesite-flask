@@ -9,6 +9,7 @@ import { AuthProvider } from "@/components/auth/AuthContext";
 import { usePathname } from "next/navigation"; // Import usePathname
 import { useIsMobile } from "@/hooks/use-mobile"; // Import useIsMobile
 import { MobileSidebar } from "@/components/layout/mobile-sidebar"; // Import MobileSidebar
+import { useEffect, useState } from "react"; // Import useEffect and useState
 
 const geistSans = GeistSans;
 const geistMono = GeistMono;
@@ -39,10 +40,32 @@ export default function RootLayout({
 }>) {
   const pathname = usePathname();
   const isMobile = useIsMobile();
+  const [mounted, setMounted] = useState(false); // New state for client-side mounting
+
+  useEffect(() => {
+    setMounted(true); // Set to true once component mounts on client
+  }, []);
 
   // Define paths where the sidebar should NOT be displayed
   const noSidebarPaths = ['/login', '/forgot-password', '/update-password', '/confirm-email'];
   const showSidebar = !noSidebarPaths.includes(pathname);
+
+  // Determine which sidebar to show and content margin
+  let sidebarComponent = null;
+  let mainContentClass = 'ml-0';
+
+  if (showSidebar) {
+    if (!mounted) {
+      // On server render or initial client render before useEffect,
+      // default to MainSidebar (desktop version) to avoid hydration mismatch.
+      sidebarComponent = <MainSidebar />;
+      mainContentClass = 'ml-64'; // Assume desktop layout
+    } else {
+      // Once mounted on client, use the actual isMobile value
+      sidebarComponent = isMobile ? <MobileSidebar /> : <MainSidebar />;
+      mainContentClass = isMobile ? 'ml-0' : 'ml-64';
+    }
+  }
 
   return (
     <html lang="en">
@@ -51,8 +74,8 @@ export default function RootLayout({
       >
         <AuthProvider>
           <div className="flex min-h-screen">
-            {showSidebar && (isMobile ? <MobileSidebar /> : <MainSidebar />)}
-            <div className={`flex-1 ${showSidebar ? (isMobile ? 'ml-0' : 'ml-64') : 'ml-0'}`}>
+            {sidebarComponent}
+            <div className={`flex-1 ${mainContentClass}`}>
               {children}
             </div>
           </div>
